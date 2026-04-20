@@ -11,6 +11,8 @@ namespace QRAuth\PasswordlessSocialLogin;
 
 defined( 'ABSPATH' ) || exit;
 
+use QRAuth\PasswordlessSocialLogin\Frontend\AssetEnqueue;
+use QRAuth\PasswordlessSocialLogin\Frontend\LoginWidget;
 use QRAuth\PasswordlessSocialLogin\Settings\Settings;
 use QRAuth\PasswordlessSocialLogin\Support\Options;
 
@@ -37,6 +39,20 @@ final class Plugin {
 	 * @var Settings|null
 	 */
 	private ?Settings $settings = null;
+
+	/**
+	 * Asset enqueuer for wp-login.php.
+	 *
+	 * @var AssetEnqueue|null
+	 */
+	private ?AssetEnqueue $assets = null;
+
+	/**
+	 * Widget renderer for wp-login.php.
+	 *
+	 * @var LoginWidget|null
+	 */
+	private ?LoginWidget $login_widget = null;
 
 	/**
 	 * Return the shared plugin instance.
@@ -66,6 +82,12 @@ final class Plugin {
 
 		$this->settings = new Settings();
 		$this->settings->boot();
+
+		$this->assets = new AssetEnqueue();
+		$this->assets->boot();
+
+		$this->login_widget = new LoginWidget();
+		$this->login_widget->boot();
 	}
 
 	/**

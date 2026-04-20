@@ -5,9 +5,14 @@
 # Private planning / scratch / Claude Code prompts
 /SPECS/
 
-# Build output (fetched from @qrauth/web-components during build)
+# Build output — the vendored IIFE and the adapter ship in the WP.org
+# tarball, so both must be tracked. Keep this allow-list tight so stray
+# files in assets/js/ (editor backups, source maps, unrelated builds)
+# stay out of the plugin tarball.
 /assets/js/*
 !/assets/js/.gitkeep
+!/assets/js/qrauth-components.js
+!/assets/js/qrauth-adapter.js
 
 # Tooling caches
 .phpcs.cache
@@ -27,3 +32,4 @@ Thumbs.db
 /build/
 /dist/
 *.zip
+SPECS/
