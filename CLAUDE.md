@@ -34,7 +34,29 @@ composer plugin-check
 # Vendored JS bundle — fetches @qrauth/web-components from npm, verifies sha512 SRI,
 # writes assets/js/qrauth-components.js. Version + integrity pinned in package.json "qrauth".
 npm run build:assets
+
+# Local WordPress via @wordpress/env (Docker — requires Docker Desktop running).
+# Config lives in .wp-env.json, pinned to the WP 6.4 / PHP 7.4 floor.
+npx wp-env start          # http://localhost:8888  (admin: admin / password)
+npx wp-env stop
+npx wp-env destroy        # nuke containers + DB volume when you want a fresh slate
+npx wp-env logs           # tail PHP + Apache logs
+npx wp-env run cli wp option get qrauth_psl_settings   # WP-CLI against the dev env
 ```
+
+### Smoke test (run before merging any phase PR)
+
+```bash
+composer install                              # populate vendor/ — plugin autoload needs it
+npx wp-env start                              # first run pulls ~200 MB of Docker images
+npx wp-env run cli wp plugin activate qrauth-passwordless-social-login
+npx wp-env run cli wp option get qrauth_psl_settings --format=json   # must print default array
+npx wp-env logs php | grep -i 'fatal\|error' || echo "no fatals"
+npx wp-env run cli wp plugin deactivate qrauth-passwordless-social-login
+npx wp-env run cli wp option get qrauth_psl_settings --format=json   # still present — by design
+```
+
+To exercise uninstall cleanup, `wp plugin delete qrauth-passwordless-social-login` and re-check the option is gone.
 
 ## Architecture essentials
 
