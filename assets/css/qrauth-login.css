@@ -1,0 +1,29 @@
+/*!
+ * qrauth-psl login-form widget styles
+ *
+ * Loaded on `login_enqueue_scripts` alongside the components IIFE.
+ * Scope is intentionally narrow — we only style our own wrapper; the
+ * widget's internal rendering lives in the custom element's shadow DOM
+ * and is not overridable from here.
+ */
+
+.qrauth-psl-widget {
+	margin: 1.25em 0;
+	padding: 0.75em 0;
+	text-align: center;
+}
+
+.qrauth-psl-widget__divider {
+	margin: 0 0 0.75em;
+	color: #646970;
+	font-size: 0.8125em;
+	letter-spacing: 0.04em;
+}
+
+.qrauth-psl-widget qrauth-login {
+	display: inline-block;
+}
+
+.qrauth-psl-widget--inline qrauth-login {
+	display: block;
+}

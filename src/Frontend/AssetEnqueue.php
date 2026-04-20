@@ -52,6 +52,11 @@ final class AssetEnqueue {
 	public const HANDLE_ADAPTER = 'qrauth-psl-adapter';
 
 	/**
+	 * Style handle for the login-form widget wrapper.
+	 */
+	public const HANDLE_STYLE = 'qrauth-psl-login';
+
+	/**
 	 * Vendored bundle version (used as the `ver=` cache-buster).
 	 *
 	 * KEEP IN SYNC with `package.json` `qrauth.webComponentsVersion` — bump
@@ -86,6 +91,13 @@ final class AssetEnqueue {
 		if ( ! $has_login_widget ) {
 			return;
 		}
+
+		wp_enqueue_style(
+			self::HANDLE_STYLE,
+			plugins_url( 'assets/css/qrauth-login.css', QRAUTH_PSL_FILE ),
+			array(),
+			QRAUTH_PSL_VERSION
+		);
 
 		wp_enqueue_script(
 			self::HANDLE_COMPONENTS,
