@@ -156,21 +156,12 @@ final class VerifyRouteTest extends WP_UnitTestCase {
 	 */
 	public function test_signature_invalid(): void {
 		$this->authenticate();
-		FakeQRAuthClient::$invocations   = array();
 		$this->fake_client->return_value = new VerifyResult( false, '', '', '', null, null, array(), '' );
 
 		$response = $this->dispatch_verify( self::VALID_UUID, self::VALID_SIG );
 
-		$diag = sprintf(
-			'status=%d body=%s trace=%s fake_id=%d',
-			$response->get_status(),
-			wp_json_encode( $response->get_data() ),
-			wp_json_encode( FakeQRAuthClient::$invocations ),
-			spl_object_id( $this->fake_client )
-		);
-
-		$this->assertSame( 400, $response->get_status(), $diag );
-		$this->assertSame( 'signature_invalid', $response->get_data()['code'], $diag );
+		$this->assertSame( 400, $response->get_status() );
+		$this->assertSame( 'signature_invalid', $response->get_data()['code'] );
 	}
 
 	/**

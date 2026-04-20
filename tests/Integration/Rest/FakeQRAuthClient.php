@@ -23,16 +23,6 @@ use QRAuth\PasswordlessSocialLogin\Verification\VerifyResult;
 final class FakeQRAuthClient extends QRAuthClient {
 
 	/**
-	 * Per-invocation diagnostic trace — tests can read it to check that
-	 * the fake actually ran with a configured return_value.
-	 *
-	 * Each entry: `['instance' => int, 'return_set' => bool, 'throw_set' => bool]`.
-	 *
-	 * @var array<int,array<string,mixed>>
-	 */
-	public static array $invocations = array();
-
-	/**
 	 * Configurable return value — tests set this before dispatching.
 	 *
 	 * @var VerifyResult|null
@@ -64,18 +54,12 @@ final class FakeQRAuthClient extends QRAuthClient {
 	public function verify_result( string $session_id, string $signature ): VerifyResult {
 		unset( $session_id, $signature );
 
-		self::$invocations[] = array(
-			'instance'   => spl_object_id( $this ),
-			'return_set' => null !== $this->return_value,
-			'throw_set'  => null !== $this->throw_value,
-		);
-
 		if ( null !== $this->throw_value ) {
 			throw $this->throw_value;
 		}
 
 		if ( null === $this->return_value ) {
-			throw new VerifyException( 'fake_unconfigured', 'FakeQRAuthClient has no return_value configured' );
+			throw new VerifyException( 'verify_failed', 'FakeQRAuthClient has no return_value configured' );
 		}
 
 		return $this->return_value;
