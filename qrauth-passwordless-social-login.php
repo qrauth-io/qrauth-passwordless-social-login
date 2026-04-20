@@ -5,7 +5,7 @@
  * Description:       Passwordless and social login for WordPress powered by QRAuth web components.
  * Version:           0.1.0
  * Requires at least: 6.4
- * Requires PHP:      7.4
+ * Requires PHP:      8.2
  * Author:            QRAuth
  * Author URI:        https://qrauth.io
  * License:           GPL-2.0-or-later

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 WordPress plugin — a reference CMS integration for QRAuth (passwordless + social login via the hosted `@qrauth/web-components` widget). The plugin is targeting the WordPress.org plugin directory. It is the first of several planned CMS integrations (Shopify, Drupal, Ghost, …), so patterns here must generalise; avoid WP-only shortcuts unless the equivalent exists across CMSes.
 
-Slug: `qrauth-passwordless-social-login` · PHP ≥ 7.4 · WP ≥ 6.4 · License GPL-2.0-or-later.
+Slug: `qrauth-passwordless-social-login` · PHP ≥ 8.2 · WP ≥ 6.4 · License GPL-2.0-or-later.
 
 ## Common commands
 
@@ -48,7 +48,7 @@ npm run build:assets
 
 ## Non-negotiable conventions
 
-Enforced by `phpcs.xml.dist` (WordPress + WordPress-Extra + WordPress-Docs + PHPCompatibilityWP, `testVersion=7.4-`).
+Enforced by `phpcs.xml.dist` (WordPress + WordPress-Extra + WordPress-Docs + PHPCompatibilityWP, `testVersion=8.2-`).
 
 - **Prefixes are ruleset-enforced** via `WordPress.NamingConventions.PrefixAllGlobals`:
   - Namespace: `QRAuth\PasswordlessSocialLogin\…`
@@ -57,7 +57,7 @@ Enforced by `phpcs.xml.dist` (WordPress + WordPress-Extra + WordPress-Docs + PHP
   - Text domain: `qrauth-passwordless-social-login`
   - REST namespace: `qrauth-psl/v1`
 - `declare(strict_types=1);` at the top of every file in `src/`. One class per file. Parameter and return types required.
-- PHP 7.4 floor: **no** `match`, **no** union/intersection types in signatures, **no** named arguments, **no** constructor property promotion. PHPCompatibilityWP will catch these.
+- PHP 8.2 floor: `match`, union/intersection types, named arguments, constructor property promotion, `readonly` properties, and enums are all available. PHPCompatibilityWP enforces this — don't reach for PHP 8.3+ features without bumping the floor.
 - WP 6.4 API floor: anything newer needs a `function_exists` guard.
 - Security boilerplate: `defined( 'ABSPATH' ) || exit;` at the top of directly-reachable PHP files; every `echo` goes through `esc_html`/`esc_attr`/`esc_url`/`wp_kses_post`; every user-reachable mutation checks a nonce.
 - i18n: every user-facing string through `__()` / `_e()` / `_x()` with the `qrauth-passwordless-social-login` text domain; use `sprintf` with placeholders (no concatenation inside `__`); translator comments on any string with placeholders.
@@ -73,4 +73,4 @@ Enforced by `phpcs.xml.dist` (WordPress + WordPress-Extra + WordPress-Docs + PHP
 
 ## CI (`.github/workflows/ci.yml`)
 
-Four jobs, all green before merge: **lint** (PHPCS on 8.2), **assets** (`npm run build:assets` + verifies IIFE is non-empty), **phpunit** (matrix PHP 7.4/8.1/8.2/8.3 × WP 6.4/6.5/6.6/6.7/latest, minus `php7.4 × latest`), **plugin-check** (WordPress/plugin-check-action, excludes `vendor,node_modules,tests,bin,build`). If CI fails, report and wait — do not push fix-forward commits same-session.
+Four jobs, all green before merge: **lint** (PHPCS on 8.2), **assets** (`npm run build:assets` + verifies IIFE is non-empty), **phpunit** (matrix PHP 8.2/8.3 × WP 6.4/6.5/6.6/6.7/latest = 10 cells), **plugin-check** (WordPress/plugin-check-action, excludes `vendor,node_modules,tests,bin,build`). If CI fails, report and wait — do not push fix-forward commits same-session.
