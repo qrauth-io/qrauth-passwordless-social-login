@@ -283,18 +283,32 @@ final class VerifyRouteTest extends WP_UnitTestCase {
 		$this->authenticate();
 		$this->fake_client->return_value = $this->make_verify_result();
 
+		$trace = array();
 		for ( $i = 0; $i < 10; $i++ ) {
 			$response = $this->dispatch_verify( self::VALID_UUID, self::VALID_SIG );
+			$trace[]  = sprintf(
+				'#%d=%d:%s',
+				$i + 1,
+				$response->get_status(),
+				is_array( $response->get_data() ) ? ( $response->get_data()['code'] ?? 'ok' ) : 'n/a'
+			);
 			$this->assertNotSame(
 				429,
 				$response->get_status(),
-				sprintf( 'Request %d should not be rate-limited', $i + 1 )
+				sprintf( 'Request %d should not be rate-limited. Trace: %s', $i + 1, implode( ' ', $trace ) )
 			);
 		}
 
 		$response = $this->dispatch_verify( self::VALID_UUID, self::VALID_SIG );
-		$this->assertSame( 429, $response->get_status() );
-		$this->assertSame( 'rate_limited', $response->get_data()['code'] );
+		$trace[]  = sprintf(
+			'#11=%d:%s',
+			$response->get_status(),
+			is_array( $response->get_data() ) ? ( $response->get_data()['code'] ?? 'ok' ) : 'n/a'
+		);
+
+		$diag = 'Trace: ' . implode( ' ', $trace );
+		$this->assertSame( 429, $response->get_status(), $diag );
+		$this->assertSame( 'rate_limited', $response->get_data()['code'], $diag );
 	}
 
 	/**
