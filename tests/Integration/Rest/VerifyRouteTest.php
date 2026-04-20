@@ -280,35 +280,30 @@ final class VerifyRouteTest extends WP_UnitTestCase {
 	 * 11th request within the window → 429 rate_limited.
 	 */
 	public function test_rate_limit_kicks_in_on_11th_request(): void {
-		$this->authenticate();
 		$this->fake_client->return_value = $this->make_verify_result();
 
-		$trace = array();
+		// Each successful dispatch calls wp_set_auth_cookie, which bumps
+		// the current user away from 0. `wp_rest` nonces are bound to the
+		// current user, so we have to reset + re-authenticate per
+		// iteration to keep the nonce valid for this in-process test.
 		for ( $i = 0; $i < 10; $i++ ) {
+			wp_set_current_user( 0 );
+			$this->authenticate();
+
 			$response = $this->dispatch_verify( self::VALID_UUID, self::VALID_SIG );
-			$trace[]  = sprintf(
-				'#%d=%d:%s',
-				$i + 1,
-				$response->get_status(),
-				is_array( $response->get_data() ) ? ( $response->get_data()['code'] ?? 'ok' ) : 'n/a'
-			);
 			$this->assertNotSame(
 				429,
 				$response->get_status(),
-				sprintf( 'Request %d should not be rate-limited. Trace: %s', $i + 1, implode( ' ', $trace ) )
+				sprintf( 'Request %d should not be rate-limited', $i + 1 )
 			);
 		}
 
+		wp_set_current_user( 0 );
+		$this->authenticate();
 		$response = $this->dispatch_verify( self::VALID_UUID, self::VALID_SIG );
-		$trace[]  = sprintf(
-			'#11=%d:%s',
-			$response->get_status(),
-			is_array( $response->get_data() ) ? ( $response->get_data()['code'] ?? 'ok' ) : 'n/a'
-		);
 
-		$diag = 'Trace: ' . implode( ' ', $trace );
-		$this->assertSame( 429, $response->get_status(), $diag );
-		$this->assertSame( 'rate_limited', $response->get_data()['code'], $diag );
+		$this->assertSame( 429, $response->get_status() );
+		$this->assertSame( 'rate_limited', $response->get_data()['code'] );
 	}
 
 	/**
