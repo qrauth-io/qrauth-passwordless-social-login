@@ -34,4 +34,10 @@ if ( $qrauth_psl_wp_tests_dir && file_exists( $qrauth_psl_wp_tests_dir . '/inclu
 	);
 
 	require $qrauth_psl_wp_tests_dir . '/includes/bootstrap.php';
+} else {
+	// Unit-suite-only — stub the WP classes our code type-hints against.
+	// The integration suite loads the real ones from the WordPress test
+	// library above; we only reach this branch when WP isn't available.
+	require __DIR__ . '/stubs/wp-error.php';
+	require __DIR__ . '/stubs/wp-user.php';
 }
