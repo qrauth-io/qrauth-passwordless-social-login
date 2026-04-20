@@ -11,6 +11,9 @@ namespace QRAuth\PasswordlessSocialLogin;
 
 defined( 'ABSPATH' ) || exit;
 
+use QRAuth\PasswordlessSocialLogin\Settings\Settings;
+use QRAuth\PasswordlessSocialLogin\Support\Options;
+
 /**
  * Wires WordPress hooks and holds references to service objects.
  *
@@ -27,6 +30,13 @@ final class Plugin {
 	 * @var self|null
 	 */
 	private static ?self $instance = null;
+
+	/**
+	 * Admin settings controller.
+	 *
+	 * @var Settings|null
+	 */
+	private ?Settings $settings = null;
 
 	/**
 	 * Return the shared plugin instance.
@@ -53,14 +63,17 @@ final class Plugin {
 		register_deactivation_hook( QRAUTH_PSL_FILE, array( $this, 'on_deactivate' ) );
 
 		add_action( 'plugins_loaded', array( $this, 'load_textdomain' ) );
+
+		$this->settings = new Settings();
+		$this->settings->boot();
 	}
 
 	/**
 	 * Seed default settings on first activation.
 	 */
 	public function on_activate(): void {
-		if ( false === get_option( 'qrauth_psl_settings' ) ) {
-			add_option( 'qrauth_psl_settings', self::default_settings() );
+		if ( false === get_option( Options::OPTION_NAME ) ) {
+			add_option( Options::OPTION_NAME, self::default_settings() );
 		}
 	}
 
@@ -85,16 +98,12 @@ final class Plugin {
 	/**
 	 * Default settings seeded on first activation.
 	 *
+	 * Delegates to {@see Options::defaults()} so there's a single source
+	 * of truth for the option shape across the plugin.
+	 *
 	 * @return array<string, mixed>
 	 */
 	public static function default_settings(): array {
-		return array(
-			'client_id'      => '',
-			'base_url'       => 'https://qrauth.io',
-			'auto_provision' => false,
-			'default_role'   => 'subscriber',
-			'allowed_scopes' => array( 'identity', 'email' ),
-			'enabled_on'     => array( 'wp-login', 'register' ),
-		);
+		return Options::defaults();
 	}
 }

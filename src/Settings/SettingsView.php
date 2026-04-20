@@ -1,0 +1,231 @@
+<?php
+/**
+ * Admin settings page markup.
+ *
+ * @package QRAuth\PasswordlessSocialLogin
+ */
+
+declare(strict_types=1);
+
+namespace QRAuth\PasswordlessSocialLogin\Settings;
+
+defined( 'ABSPATH' ) || exit;
+
+use QRAuth\PasswordlessSocialLogin\Support\Options;
+
+/**
+ * Renders the Settings → QRAuth admin page.
+ *
+ * Markup-only sibling of {@see Settings}. No side effects beyond emitting
+ * HTML; all reads go through {@see Options} so defaults stay centralised.
+ *
+ * @since 0.1.0
+ */
+final class SettingsView {
+
+	/**
+	 * Emit the admin settings page.
+	 */
+	public static function render(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		$options       = Options::all();
+		$get_client_id = 'https://qrauth.io/dashboard/apps/create';
+		?>
+		<div class="wrap">
+			<h1><?php esc_html_e( 'QRAuth — Passwordless & Social Login', 'qrauth-passwordless-social-login' ); ?></h1>
+
+			<?php if ( '' === $options['client_id'] ) : ?>
+				<div class="notice notice-warning inline">
+					<p>
+						<strong><?php esc_html_e( 'QRAuth is not yet configured.', 'qrauth-passwordless-social-login' ); ?></strong>
+						<?php esc_html_e( 'Paste your Client ID below to enable the login widget.', 'qrauth-passwordless-social-login' ); ?>
+					</p>
+				</div>
+			<?php endif; ?>
+
+			<p>
+				<a href="<?php echo esc_url( $get_client_id ); ?>" class="button button-primary" target="_blank" rel="noopener noreferrer">
+					<?php esc_html_e( 'Get your Client ID', 'qrauth-passwordless-social-login' ); ?>
+				</a>
+			</p>
+
+			<form method="post" action="options.php">
+				<?php settings_fields( Settings::OPTION_GROUP ); ?>
+
+				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row">
+							<label for="qrauth_psl_client_id">
+								<?php esc_html_e( 'Client ID', 'qrauth-passwordless-social-login' ); ?>
+							</label>
+						</th>
+						<td>
+							<input
+								type="text"
+								id="qrauth_psl_client_id"
+								name="qrauth_psl_settings[client_id]"
+								value="<?php echo esc_attr( $options['client_id'] ); ?>"
+								class="regular-text code"
+								autocomplete="off"
+								spellcheck="false"
+							/>
+							<p class="description">
+								<?php esc_html_e( 'The public Client ID from your QRAuth app. Safe to expose to the browser.', 'qrauth-passwordless-social-login' ); ?>
+							</p>
+						</td>
+					</tr>
+
+					<tr>
+						<th scope="row">
+							<label for="qrauth_psl_base_url">
+								<?php esc_html_e( 'Base URL', 'qrauth-passwordless-social-login' ); ?>
+							</label>
+						</th>
+						<td>
+							<input
+								type="url"
+								id="qrauth_psl_base_url"
+								name="qrauth_psl_settings[base_url]"
+								value="<?php echo esc_attr( $options['base_url'] ); ?>"
+								class="regular-text code"
+							/>
+							<p class="description">
+								<?php esc_html_e( 'Only https:// is accepted (http://localhost or http://127.0.0.1 allowed for local development).', 'qrauth-passwordless-social-login' ); ?>
+							</p>
+						</td>
+					</tr>
+
+					<tr>
+						<th scope="row">
+							<?php esc_html_e( 'Auto-provision new users', 'qrauth-passwordless-social-login' ); ?>
+						</th>
+						<td>
+							<fieldset>
+								<label>
+									<input
+										type="checkbox"
+										name="qrauth_psl_settings[auto_provision]"
+										value="1"
+										<?php checked( $options['auto_provision'], true ); ?>
+									/>
+									<?php esc_html_e( 'Create a WordPress account on first successful QRAuth login.', 'qrauth-passwordless-social-login' ); ?>
+								</label>
+								<p class="description">
+									<?php esc_html_e( 'Off by default. Enable only for sites where you want open registration through QRAuth — otherwise only users who already have a WordPress account can sign in.', 'qrauth-passwordless-social-login' ); ?>
+								</p>
+							</fieldset>
+						</td>
+					</tr>
+
+					<tr>
+						<th scope="row">
+							<label for="qrauth_psl_default_role">
+								<?php esc_html_e( 'Default role for new users', 'qrauth-passwordless-social-login' ); ?>
+							</label>
+						</th>
+						<td>
+							<select id="qrauth_psl_default_role" name="qrauth_psl_settings[default_role]">
+								<option value="subscriber" <?php selected( $options['default_role'], 'subscriber' ); ?>>
+									<?php esc_html_e( 'Subscriber', 'qrauth-passwordless-social-login' ); ?>
+								</option>
+								<option value="contributor" <?php selected( $options['default_role'], 'contributor' ); ?>>
+									<?php esc_html_e( 'Contributor', 'qrauth-passwordless-social-login' ); ?>
+								</option>
+								<option value="author" <?php selected( $options['default_role'], 'author' ); ?>>
+									<?php esc_html_e( 'Author', 'qrauth-passwordless-social-login' ); ?>
+								</option>
+							</select>
+							<p class="description">
+								<?php esc_html_e( 'Applied only when Auto-provision is on. Editor and Administrator are deliberately unavailable.', 'qrauth-passwordless-social-login' ); ?>
+							</p>
+						</td>
+					</tr>
+
+					<tr>
+						<th scope="row">
+							<?php esc_html_e( 'Allowed scopes', 'qrauth-passwordless-social-login' ); ?>
+						</th>
+						<td>
+							<fieldset>
+								<label>
+									<input type="checkbox" checked disabled />
+									<code>identity</code>
+									<span class="description"><?php esc_html_e( '(always required)', 'qrauth-passwordless-social-login' ); ?></span>
+								</label>
+								<input type="hidden" name="qrauth_psl_settings[allowed_scopes][]" value="identity" />
+								<br />
+								<label>
+									<input
+										type="checkbox"
+										name="qrauth_psl_settings[allowed_scopes][]"
+										value="email"
+										<?php checked( in_array( 'email', $options['allowed_scopes'], true ), true ); ?>
+									/>
+									<code>email</code>
+								</label>
+								<br />
+								<label>
+									<input
+										type="checkbox"
+										name="qrauth_psl_settings[allowed_scopes][]"
+										value="organization"
+										<?php checked( in_array( 'organization', $options['allowed_scopes'], true ), true ); ?>
+									/>
+									<code>organization</code>
+								</label>
+								<p class="description">
+									<?php esc_html_e( 'QRAuth asks the user to consent to each scope on first approval.', 'qrauth-passwordless-social-login' ); ?>
+								</p>
+							</fieldset>
+						</td>
+					</tr>
+
+					<tr>
+						<th scope="row">
+							<?php esc_html_e( 'Show widget on', 'qrauth-passwordless-social-login' ); ?>
+						</th>
+						<td>
+							<fieldset>
+								<label>
+									<input
+										type="checkbox"
+										name="qrauth_psl_settings[enabled_on][]"
+										value="wp-login"
+										<?php checked( in_array( 'wp-login', $options['enabled_on'], true ), true ); ?>
+									/>
+									<?php esc_html_e( 'WordPress login form (wp-login.php)', 'qrauth-passwordless-social-login' ); ?>
+								</label>
+								<br />
+								<label>
+									<input
+										type="checkbox"
+										name="qrauth_psl_settings[enabled_on][]"
+										value="register"
+										<?php checked( in_array( 'register', $options['enabled_on'], true ), true ); ?>
+									/>
+									<?php esc_html_e( 'Registration form', 'qrauth-passwordless-social-login' ); ?>
+								</label>
+								<br />
+								<label>
+									<input
+										type="checkbox"
+										name="qrauth_psl_settings[enabled_on][]"
+										value="profile"
+										<?php checked( in_array( 'profile', $options['enabled_on'], true ), true ); ?>
+									/>
+									<?php esc_html_e( 'User profile (link / unlink account)', 'qrauth-passwordless-social-login' ); ?>
+								</label>
+							</fieldset>
+						</td>
+					</tr>
+				</table>
+
+				<?php submit_button(); ?>
+			</form>
+		</div>
+		<?php
+	}
+}
