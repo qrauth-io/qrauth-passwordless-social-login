@@ -155,6 +155,7 @@ jobs:
             --exclude="package-lock.json" \
             --exclude="phpcs.xml.dist" \
             --exclude="phpunit.xml.dist" \
+            --exclude=".gitkeep" \
             source/ ./build/qrauth-passwordless-social-login/
 
       - name: Run plugin-check
