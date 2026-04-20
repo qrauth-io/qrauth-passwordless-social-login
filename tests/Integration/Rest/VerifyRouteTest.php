@@ -94,7 +94,10 @@ final class VerifyRouteTest extends WP_UnitTestCase {
 		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- driving WP's own hook from the test harness.
 		do_action( 'rest_api_init', $wp_rest_server );
 
-		$this->controller->register_route();
+		// Override=true: the plugin's globally-booted RestController has
+		// already registered the route during muplugins_loaded, without a
+		// fake client. Force-replace so our fake-carrying controller wins.
+		$this->controller->register_route( true );
 
 		update_option(
 			Options::OPTION_NAME,

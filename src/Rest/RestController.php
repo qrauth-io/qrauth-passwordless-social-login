@@ -94,8 +94,15 @@ final class RestController {
 
 	/**
 	 * Register the `/verify` route with the REST server.
+	 *
+	 * Integration tests pass `$override = true` to replace the route that
+	 * the globally-booted plugin instance registered during
+	 * `muplugins_loaded` — otherwise WP's endpoint merging keeps the
+	 * default (fake-less) handler in front.
+	 *
+	 * @param bool $override Pass true to force-replace an already-registered route.
 	 */
-	public function register_route(): void {
+	public function register_route( bool $override = false ): void {
 		register_rest_route(
 			self::ROUTE_NAMESPACE,
 			self::ROUTE_PATH,
@@ -117,7 +124,8 @@ final class RestController {
 						'validate_callback' => array( VerifyRequest::class, 'validate_signature' ),
 					),
 				),
-			)
+			),
+			$override
 		);
 	}
 
