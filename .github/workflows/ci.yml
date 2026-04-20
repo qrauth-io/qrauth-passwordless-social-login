@@ -56,6 +56,11 @@ jobs:
   phpunit:
     name: PHPUnit (PHP ${{ matrix.php }} / WP ${{ matrix.wp }})
     runs-on: ubuntu-latest
+    # install-wp-tests.sh defaults to /tmp/wordpress-tests-lib for its output;
+    # export it so tests/bootstrap.php loads the WP harness (needed for any
+    # test extending WP_UnitTestCase).
+    env:
+      WP_TESTS_DIR: /tmp/wordpress-tests-lib
     services:
       mysql:
         image: mysql:8.0
