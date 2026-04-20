@@ -67,24 +67,29 @@ final class VerifyRouteTest extends WP_UnitTestCase {
 	/**
 	 * Install the controller with a fake QRAuthClient and a clean rate-limit slot.
 	 *
-	 * WP emits a `_doing_it_wrong` notice (since 5.1) if `register_rest_route`
-	 * is called outside the `rest_api_init` action. We wire the controller
-	 * through `boot()` so its callback hooks `rest_api_init`, then initialise
-	 * Spy_REST_Server and fire the action — the same pattern WP core tests
-	 * use for REST controllers.
+	 * We deliberately DON'T call `$this->controller->boot()` — that adds a
+	 * `rest_api_init` hook per test, and WP_UnitTestCase's hook-restore
+	 * between tests doesn't reliably scrub it. The leak caused earlier tests'
+	 * controllers (holding stale fake clients) to handle later tests'
+	 * requests.
+	 *
+	 * Instead: fire `rest_api_init` once to bump `did_action()` past zero
+	 * (so `register_rest_route` doesn't emit `_doing_it_wrong`), then register
+	 * our route directly against the current controller instance.
 	 */
 	public function set_up(): void {
 		parent::set_up();
 
 		$this->fake_client = new FakeQRAuthClient();
 		$this->controller  = new RestController( $this->fake_client );
-		$this->controller->boot();
 
 		global $wp_rest_server;
 		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- WP's own REST server global; the test harness uses it directly.
 		$wp_rest_server = new \Spy_REST_Server();
 		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- driving WP's own hook from the test harness.
 		do_action( 'rest_api_init', $wp_rest_server );
+
+		$this->controller->register_route();
 
 		update_option(
 			Options::OPTION_NAME,
