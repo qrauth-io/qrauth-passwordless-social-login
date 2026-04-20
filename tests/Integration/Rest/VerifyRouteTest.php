@@ -57,13 +57,25 @@ final class VerifyRouteTest extends WP_UnitTestCase {
 
 	/**
 	 * Install the controller with a fake QRAuthClient and a clean rate-limit slot.
+	 *
+	 * WP emits a `_doing_it_wrong` notice (since 5.1) if `register_rest_route`
+	 * is called outside the `rest_api_init` action. We wire the controller
+	 * through `boot()` so its callback hooks `rest_api_init`, then initialise
+	 * Spy_REST_Server and fire the action — the same pattern WP core tests
+	 * use for REST controllers.
 	 */
 	public function set_up(): void {
 		parent::set_up();
 
 		$this->fake_client = new FakeQRAuthClient();
 		$this->controller  = new RestController( $this->fake_client );
-		$this->controller->register_route();
+		$this->controller->boot();
+
+		global $wp_rest_server;
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- WP's own REST server global; the test harness uses it directly.
+		$wp_rest_server = new \Spy_REST_Server();
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- driving WP's own hook from the test harness.
+		do_action( 'rest_api_init', $wp_rest_server );
 
 		update_option(
 			Options::OPTION_NAME,
@@ -82,12 +94,17 @@ final class VerifyRouteTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Clean up $_SERVER globals between tests.
+	 * Clean up $_SERVER globals and the REST server between tests.
 	 */
 	public function tear_down(): void {
 		unset( $_SERVER['HTTP_X_WP_NONCE'] );
 		unset( $_SERVER['REMOTE_ADDR'] );
 		$this->reset_rate_limit();
+
+		global $wp_rest_server;
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- WP's own REST server global; reset between tests.
+		$wp_rest_server = null;
+
 		parent::tear_down();
 	}
 
