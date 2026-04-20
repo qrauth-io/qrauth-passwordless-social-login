@@ -59,7 +59,11 @@ final class FakeQRAuthClient extends QRAuthClient {
 		}
 
 		if ( null === $this->return_value ) {
-			throw new VerifyException( 'verify_failed', 'FakeQRAuthClient has no return_value configured' );
+			// Distinguish "fake was invoked but return_value wasn't set" from
+			// "a real QRAuthClient ran because the fake was never reached" —
+			// the second case would surface as verify_failed from a transport
+			// error, this as fake_unconfigured.
+			throw new VerifyException( 'fake_unconfigured', 'FakeQRAuthClient has no return_value configured' );
 		}
 
 		return $this->return_value;
