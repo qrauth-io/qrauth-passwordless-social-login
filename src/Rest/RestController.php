@@ -128,8 +128,12 @@ final class RestController {
 	 * @return WP_REST_Response
 	 */
 	public function handle( WP_REST_Request $request ): WP_REST_Response {
-		// 1. Nonce (REST cookie auth).
-		if ( ! check_ajax_referer( 'wp_rest', '_wpnonce', false ) ) {
+		// 1. Nonce (REST cookie auth). Read from the X-WP-Nonce header —
+		// `check_ajax_referer` only looks at $_REQUEST, which WP's REST
+		// dispatcher doesn't populate from request headers. Our adapter
+		// always sends the nonce via the X-WP-Nonce header.
+		$nonce = (string) $request->get_header( 'X-WP-Nonce' );
+		if ( ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
 			return self::error( 'nonce_failed', 403 );
 		}
 

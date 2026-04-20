@@ -46,6 +46,15 @@ final class VerifyRouteTest extends WP_UnitTestCase {
 	private RestController $controller;
 
 	/**
+	 * Current `wp_rest` nonce, installed by `authenticate()` and attached
+	 * to each dispatched request as an `X-WP-Nonce` header. Null means
+	 * "no nonce" (expected to produce a 403).
+	 *
+	 * @var string|null
+	 */
+	private ?string $nonce = null;
+
+	/**
 	 * A valid UUID + signature that pass the format validators.
 	 */
 	private const VALID_UUID = '550e8400-e29b-41d4-a716-446655440000';
@@ -90,6 +99,7 @@ final class VerifyRouteTest extends WP_UnitTestCase {
 		);
 
 		$_SERVER['REMOTE_ADDR'] = '127.0.0.1';
+		$this->nonce            = null;
 		$this->reset_rate_limit();
 	}
 
@@ -97,7 +107,6 @@ final class VerifyRouteTest extends WP_UnitTestCase {
 	 * Clean up $_SERVER globals and the REST server between tests.
 	 */
 	public function tear_down(): void {
-		unset( $_SERVER['HTTP_X_WP_NONCE'] );
 		unset( $_SERVER['REMOTE_ADDR'] );
 		$this->reset_rate_limit();
 
@@ -280,10 +289,11 @@ final class VerifyRouteTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Set a valid X-WP-Nonce for the anonymous user.
+	 * Stash a valid `wp_rest` nonce for the anonymous user. `dispatch_verify()`
+	 * attaches it as the `X-WP-Nonce` header on every outgoing request.
 	 */
 	private function authenticate(): void {
-		$_SERVER['HTTP_X_WP_NONCE'] = wp_create_nonce( 'wp_rest' );
+		$this->nonce = wp_create_nonce( 'wp_rest' );
 	}
 
 	/**
@@ -296,6 +306,9 @@ final class VerifyRouteTest extends WP_UnitTestCase {
 	private function dispatch_verify( string $session_id, string $signature ): \WP_REST_Response {
 		$request = new WP_REST_Request( 'POST', '/qrauth-psl/v1/verify' );
 		$request->set_header( 'Content-Type', 'application/json' );
+		if ( null !== $this->nonce ) {
+			$request->set_header( 'X-WP-Nonce', $this->nonce );
+		}
 		$request->set_param( 'sessionId', $session_id );
 		$request->set_param( 'signature', $signature );
 
