@@ -88,6 +88,9 @@ jobs:
       - name: Install Composer deps
         uses: ramsey/composer-install@v3
 
+      - name: Install subversion (required by install-wp-tests.sh)
+        run: sudo apt-get update && sudo apt-get install -y subversion
+
       - name: Install WP test suite
         run: bin/install-wp-tests.sh wordpress_test root root 127.0.0.1:3306 ${{ matrix.wp }}
 
@@ -115,5 +118,8 @@ jobs:
         uses: WordPress/plugin-check-action@v1
         with:
           build-dir: ./qrauth-passwordless-social-login
-          # Fail on errors only; warnings surface in the log.
-          exclude-directories: "vendor,node_modules,tests,bin,build"
+          # Dev files are kept in the repo for contributor convenience but
+          # stripped from the WP.org tarball — exclude them here so they
+          # don't trip the "hidden files" / "application files" checks.
+          exclude-directories: "vendor,node_modules,tests,bin,build,.github,SPECS"
+          exclude-files: ".editorconfig,.gitattributes,.gitignore,.phpcs.cache,CLAUDE.md,composer.json,composer.lock,package.json,package-lock.json,phpcs.xml.dist,phpunit.xml.dist,.wp-env.json"

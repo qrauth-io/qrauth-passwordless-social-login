@@ -2,7 +2,7 @@
 Contributors: qrauth
 Tags: login, passwordless, social-login, qr-code, authentication
 Requires at least: 6.4
-Tested up to: 6.7
+Tested up to: 6.9
 Requires PHP: 8.2
 Stable tag: 0.1.0
 License: GPLv2 or later
