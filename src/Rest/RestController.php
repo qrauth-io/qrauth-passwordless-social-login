@@ -95,14 +95,33 @@ final class RestController {
 	/**
 	 * Register the `/verify` route with the REST server.
 	 *
-	 * Integration tests pass `$override = true` to replace the route that
-	 * the globally-booted plugin instance registered during
-	 * `muplugins_loaded` — otherwise WP's endpoint merging keeps the
-	 * default (fake-less) handler in front.
-	 *
-	 * @param bool $override Pass true to force-replace an already-registered route.
+	 * Callable directly by the `rest_api_init` action — WP passes the
+	 * active WP_REST_Server as a positional argument, which PHP silently
+	 * ignores here (parameterless signature).
 	 */
-	public function register_route( bool $override = false ): void {
+	public function register_route(): void {
+		$this->do_register_route( false );
+	}
+
+	/**
+	 * Register the route with the override flag set.
+	 *
+	 * Integration tests call this to replace the route that the
+	 * globally-booted plugin instance already registered during
+	 * `muplugins_loaded` — otherwise WP's endpoint merging keeps the
+	 * default (fake-less) handler in front and the test's handler
+	 * never runs.
+	 */
+	public function register_route_override(): void {
+		$this->do_register_route( true );
+	}
+
+	/**
+	 * Private implementation shared by the public (re)register methods.
+	 *
+	 * @param bool $override Forwarded to `register_rest_route()`.
+	 */
+	private function do_register_route( bool $override ): void {
 		register_rest_route(
 			self::ROUTE_NAMESPACE,
 			self::ROUTE_PATH,

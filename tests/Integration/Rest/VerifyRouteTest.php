@@ -97,7 +97,7 @@ final class VerifyRouteTest extends WP_UnitTestCase {
 		// Override=true: the plugin's globally-booted RestController has
 		// already registered the route during muplugins_loaded, without a
 		// fake client. Force-replace so our fake-carrying controller wins.
-		$this->controller->register_route( true );
+		$this->controller->register_route_override();
 
 		update_option(
 			Options::OPTION_NAME,
