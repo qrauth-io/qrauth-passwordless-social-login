@@ -81,7 +81,12 @@ final class VerifyRouteTest extends WP_UnitTestCase {
 		parent::set_up();
 
 		$this->fake_client = new FakeQRAuthClient();
-		$this->controller  = new RestController( $this->fake_client );
+		// Default to an approved result so tests that don't touch the fake
+		// still get a deterministic payload. Individual tests override to
+		// simulate signature-invalid, session-pending, upstream errors, etc.
+		$this->fake_client->return_value = $this->make_verify_result();
+
+		$this->controller = new RestController( $this->fake_client );
 
 		global $wp_rest_server;
 		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- WP's own REST server global; the test harness uses it directly.
