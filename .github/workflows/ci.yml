@@ -102,8 +102,18 @@ jobs:
         # create inside install-wp-tests.sh (would error "database exists").
         run: bin/install-wp-tests.sh wordpress_test root root 127.0.0.1:3306 ${{ matrix.wp }} true
 
-      - name: Run PHPUnit
-        run: composer test:all
+      # Unit and integration must run in separate PHP processes. Brain\Monkey
+      # (used by unit tests) redefines functions via Patchwork, which requires
+      # the target functions to not yet be loaded. Running under WP_TESTS_DIR
+      # means WP is already bootstrapped — Patchwork then errors
+      # "DefinedTooEarly". Two clean invocations keeps both suites honest.
+      - name: PHPUnit — unit (no WP harness)
+        env:
+          WP_TESTS_DIR: ""
+        run: composer test
+
+      - name: PHPUnit — integration (WP harness)
+        run: composer test:integration
 
   plugin-check:
     name: WP Plugin Check

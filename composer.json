@@ -30,7 +30,6 @@
         "lint:fix": "phpcbf",
         "test": "phpunit --testsuite unit",
         "test:integration": "phpunit --testsuite integration",
-        "test:all": "phpunit --testsuite unit,integration",
         "plugin-check": "wp plugin check qrauth-passwordless-social-login --fields=code,type,message"
     },
     "config": {
