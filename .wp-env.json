@@ -1,6 +1,6 @@
 {
   "core": "WordPress/WordPress#6.4",
-  "phpVersion": "7.4",
+  "phpVersion": "8.2",
   "plugins": ["."],
   "config": {
     "WP_DEBUG": true,

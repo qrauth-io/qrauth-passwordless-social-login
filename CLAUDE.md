@@ -36,7 +36,7 @@ composer plugin-check
 npm run build:assets
 
 # Local WordPress via @wordpress/env (Docker — requires Docker Desktop running).
-# Config lives in .wp-env.json, pinned to the WP 6.4 / PHP 7.4 floor.
+# Config lives in .wp-env.json, pinned to the WP 6.4 / PHP 8.2 floor.
 npx wp-env start          # http://localhost:8888  (admin: admin / password)
 npx wp-env stop
 npx wp-env destroy        # nuke containers + DB volume when you want a fresh slate
