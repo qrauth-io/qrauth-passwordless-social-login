@@ -1,0 +1,122 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: PHPCS (WPCS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          tools: composer, cs2pr
+          coverage: none
+
+      - name: Install Composer deps
+        uses: ramsey/composer-install@v3
+
+      - name: Run PHPCS
+        run: vendor/bin/phpcs -q --report=checkstyle --runtime-set ignore_warnings_on_exit 1 | cs2pr
+
+  assets:
+    name: Build web-components asset
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Fetch pinned @qrauth/web-components IIFE
+        run: npm run build:assets
+
+      - name: Verify IIFE copied
+        run: test -s assets/js/qrauth-components.js
+
+      - name: Upload built assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: assets
+          path: assets/js/
+
+  phpunit:
+    name: PHPUnit (PHP ${{ matrix.php }} / WP ${{ matrix.wp }})
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["7.4", "8.1", "8.2", "8.3"]
+        wp: ["6.4", "6.5", "6.6", "6.7", "latest"]
+        exclude:
+          - php: "7.4"
+            wp: "latest"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mysqli, mbstring, xml, curl, zip
+          tools: composer
+          coverage: none
+
+      - name: Install Composer deps
+        uses: ramsey/composer-install@v3
+
+      - name: Install WP test suite
+        run: bin/install-wp-tests.sh wordpress_test root root 127.0.0.1:3306 ${{ matrix.wp }}
+
+      - name: Run PHPUnit
+        run: vendor/bin/phpunit --testsuite unit,integration
+
+  plugin-check:
+    name: WP Plugin Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: qrauth-passwordless-social-login
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build plugin assets
+        working-directory: qrauth-passwordless-social-login
+        run: npm run build:assets
+
+      - name: Run plugin-check
+        uses: WordPress/plugin-check-action@v1
+        with:
+          build-dir: ./qrauth-passwordless-social-login
+          # Fail on errors only; warnings surface in the log.
+          exclude-directories: "vendor,node_modules,tests,bin,build"

@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<ruleset name="QRAuth PSL">
+    <description>WordPress Coding Standards for QRAuth – Passwordless &amp; Social Login.</description>
+
+    <file>.</file>
+
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>*/node_modules/*</exclude-pattern>
+    <exclude-pattern>*/assets/js/*</exclude-pattern>
+    <exclude-pattern>*/build/*</exclude-pattern>
+    <exclude-pattern>*/tests/fixtures/*</exclude-pattern>
+
+    <arg name="extensions" value="php"/>
+    <arg name="colors"/>
+    <arg value="sp"/>
+    <arg name="parallel" value="8"/>
+    <arg name="cache" value=".phpcs.cache"/>
+
+    <config name="minimum_supported_wp_version" value="6.4"/>
+    <config name="testVersion" value="7.4-"/>
+
+    <rule ref="WordPress">
+        <exclude name="WordPress.Files.FileName.InvalidClassFileName"/>
+        <exclude name="WordPress.Files.FileName.NotHyphenatedLowercase"/>
+    </rule>
+
+    <rule ref="WordPress-Extra"/>
+    <rule ref="WordPress-Docs"/>
+
+    <rule ref="PHPCompatibilityWP"/>
+
+    <rule ref="WordPress.WP.I18n">
+        <properties>
+            <property name="text_domain" type="array">
+                <element value="qrauth-passwordless-social-login"/>
+            </property>
+        </properties>
+    </rule>
+
+    <rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+        <properties>
+            <property name="prefixes" type="array">
+                <element value="qrauth_psl"/>
+                <element value="QRAUTH_PSL"/>
+                <element value="QRAuth\PasswordlessSocialLogin"/>
+            </property>
+        </properties>
+    </rule>
+</ruleset>

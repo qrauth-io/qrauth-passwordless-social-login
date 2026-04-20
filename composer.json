@@ -1,0 +1,43 @@
+{
+    "name": "qrauth/passwordless-social-login",
+    "description": "Passwordless and social login for WordPress powered by QRAuth web components.",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "require": {
+        "php": ">=7.4"
+    },
+    "require-dev": {
+        "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+        "wp-coding-standards/wpcs": "^3.1",
+        "phpcompatibility/phpcompatibility-wp": "^2.1",
+        "phpunit/phpunit": "^9.6",
+        "yoast/phpunit-polyfills": "^2.0",
+        "brain/monkey": "^2.6",
+        "wp-cli/wp-cli-bundle": "^2.11"
+    },
+    "autoload": {
+        "psr-4": {
+            "QRAuth\\PasswordlessSocialLogin\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "QRAuth\\PasswordlessSocialLogin\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "lint": "phpcs",
+        "lint:fix": "phpcbf",
+        "test": "phpunit",
+        "plugin-check": "wp plugin check qrauth-passwordless-social-login --fields=code,type,message"
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        },
+        "sort-packages": true,
+        "optimize-autoloader": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

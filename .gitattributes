@@ -1,0 +1,26 @@
+# Normalize line endings
+* text=auto eol=lf
+*.php text eol=lf
+*.js  text eol=lf
+*.json text eol=lf
+*.md  text eol=lf
+*.sh  text eol=lf
+*.png binary
+*.jpg binary
+*.gif binary
+
+# Files / paths that should never ship in WP.org release builds.
+/.github          export-ignore
+/.gitattributes   export-ignore
+/.gitignore       export-ignore
+/.editorconfig    export-ignore
+/bin              export-ignore
+/tests            export-ignore
+/node_modules     export-ignore
+/vendor           export-ignore
+/composer.json    export-ignore
+/composer.lock    export-ignore
+/package.json     export-ignore
+/package-lock.json export-ignore
+/phpcs.xml.dist   export-ignore
+/phpunit.xml.dist export-ignore

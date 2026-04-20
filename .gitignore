@@ -1,0 +1,29 @@
+# Dependencies
+/vendor/
+/node_modules/
+
+# Private planning / scratch / Claude Code prompts
+/SPECS/
+
+# Build output (fetched from @qrauth/web-components during build)
+/assets/js/*
+!/assets/js/.gitkeep
+
+# Tooling caches
+.phpcs.cache
+.phpunit.cache
+.phpunit.result.cache
+/coverage/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Build / release artifacts
+/build/
+/dist/
+*.zip

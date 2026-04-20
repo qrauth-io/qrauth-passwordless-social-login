@@ -1,0 +1,19 @@
+{
+  "name": "qrauth-passwordless-social-login",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Build scripts for the QRAuth Passwordless & Social Login WordPress plugin.",
+  "license": "GPL-2.0-or-later",
+  "type": "module",
+  "scripts": {
+    "build:assets": "node bin/fetch-web-components.mjs",
+    "build": "npm run build:assets"
+  },
+  "qrauth": {
+    "webComponentsVersion": "0.4.0",
+    "webComponentsIntegrity": "sha512-D3DAarUL7Vx1FB95pyNsLbpeXJsxJP9HnGI+enMCPgpkFBQHiR/iyOphEEzAc1RN5w2eYDxBMHIln/U6SDLv4A=="
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
