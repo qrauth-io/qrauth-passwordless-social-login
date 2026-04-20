@@ -13,6 +13,7 @@ defined( 'ABSPATH' ) || exit;
 
 use QRAuth\PasswordlessSocialLogin\Frontend\AssetEnqueue;
 use QRAuth\PasswordlessSocialLogin\Frontend\LoginWidget;
+use QRAuth\PasswordlessSocialLogin\Rest\RestController;
 use QRAuth\PasswordlessSocialLogin\Settings\Settings;
 use QRAuth\PasswordlessSocialLogin\Support\Options;
 
@@ -55,6 +56,13 @@ final class Plugin {
 	private ?LoginWidget $login_widget = null;
 
 	/**
+	 * REST controller for the verify route.
+	 *
+	 * @var RestController|null
+	 */
+	private ?RestController $rest = null;
+
+	/**
 	 * Return the shared plugin instance.
 	 */
 	public static function instance(): self {
@@ -88,6 +96,9 @@ final class Plugin {
 
 		$this->login_widget = new LoginWidget();
 		$this->login_widget->boot();
+
+		$this->rest = new RestController();
+		$this->rest->boot();
 	}
 
 	/**

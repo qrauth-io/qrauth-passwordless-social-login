@@ -28,7 +28,8 @@
     "scripts": {
         "lint": "phpcs",
         "lint:fix": "phpcbf",
-        "test": "phpunit",
+        "test": "phpunit --testsuite unit",
+        "test:integration": "phpunit --testsuite integration",
         "plugin-check": "wp plugin check qrauth-passwordless-social-login --fields=code,type,message"
     },
     "config": {
