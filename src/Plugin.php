@@ -9,6 +9,8 @@ declare(strict_types=1);
 
 namespace QRAuth\PasswordlessSocialLogin;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * Wires WordPress hooks and holds references to service objects.
  *
