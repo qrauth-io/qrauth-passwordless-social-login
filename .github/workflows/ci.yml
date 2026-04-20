@@ -92,7 +92,10 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y subversion
 
       - name: Install WP test suite
-        run: bin/install-wp-tests.sh wordpress_test root root 127.0.0.1:3306 ${{ matrix.wp }}
+        # Last arg is skip-db=true: the mysql service already created
+        # wordpress_test via MYSQL_DATABASE env, so skip the mysqladmin
+        # create inside install-wp-tests.sh (would error "database exists").
+        run: bin/install-wp-tests.sh wordpress_test root root 127.0.0.1:3306 ${{ matrix.wp }} true
 
       - name: Run PHPUnit
         run: vendor/bin/phpunit --testsuite unit,integration
@@ -103,23 +106,58 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          path: qrauth-passwordless-social-login
+          path: source
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          tools: composer
+          coverage: none
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "20"
 
+      - name: Install production composer deps
+        working-directory: source
+        run: composer install --no-dev --optimize-autoloader --no-interaction
+
       - name: Build plugin assets
-        working-directory: qrauth-passwordless-social-login
+        working-directory: source
         run: npm run build:assets
+
+      - name: Build clean plugin tree (matches the WP.org tarball shape)
+        # plugin-check's file_type check walks the directory and flags
+        # hidden/app/markdown files regardless of exclude-files. Rsync the
+        # plugin into a clean dir that excludes dev-only files up front, so
+        # we're scanning the same tree WP.org reviewers would see.
+        run: |
+          mkdir -p ./build/qrauth-passwordless-social-login
+          rsync -a --delete \
+            --exclude=".git/" \
+            --exclude=".github/" \
+            --exclude="SPECS/" \
+            --exclude="node_modules/" \
+            --exclude="tests/" \
+            --exclude="bin/" \
+            --exclude="build/" \
+            --exclude=".editorconfig" \
+            --exclude=".gitattributes" \
+            --exclude=".gitignore" \
+            --exclude=".phpcs.cache" \
+            --exclude=".wp-env.json" \
+            --exclude="CLAUDE.md" \
+            --exclude="composer.json" \
+            --exclude="composer.lock" \
+            --exclude="package.json" \
+            --exclude="package-lock.json" \
+            --exclude="phpcs.xml.dist" \
+            --exclude="phpunit.xml.dist" \
+            source/ ./build/qrauth-passwordless-social-login/
 
       - name: Run plugin-check
         uses: WordPress/plugin-check-action@v1
         with:
-          build-dir: ./qrauth-passwordless-social-login
-          # Dev files are kept in the repo for contributor convenience but
-          # stripped from the WP.org tarball — exclude them here so they
-          # don't trip the "hidden files" / "application files" checks.
-          exclude-directories: "vendor,node_modules,tests,bin,build,.github,SPECS"
-          exclude-files: ".editorconfig,.gitattributes,.gitignore,.phpcs.cache,CLAUDE.md,composer.json,composer.lock,package.json,package-lock.json,phpcs.xml.dist,phpunit.xml.dist,.wp-env.json"
+          build-dir: ./build/qrauth-passwordless-social-login
