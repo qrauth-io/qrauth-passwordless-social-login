@@ -56,7 +56,14 @@ npx wp-env run cli wp plugin deactivate qrauth-passwordless-social-login
 npx wp-env run cli wp option get qrauth_psl_settings --format=json   # still present — by design
 ```
 
-To exercise uninstall cleanup, `wp plugin delete qrauth-passwordless-social-login` and re-check the option is gone.
+**Do NOT run `wp plugin delete` or `wp plugin uninstall` inside wp-env when the plugin is bind-mounted from `.`** — WordPress's `delete_plugins()` recursively unlinks the plugin directory inside the container, and Docker's bind mount propagates every unlink back to the host, wiping your working tree. To exercise the uninstall hook safely, invoke it in isolation:
+
+```bash
+# Trigger uninstall.php against a stopped plugin, without touching files:
+npx wp-env run cli wp plugin deactivate qrauth-passwordless-social-login
+npx wp-env run cli wp eval 'define("WP_UNINSTALL_PLUGIN", 1); include WP_PLUGIN_DIR . "/qrauth-passwordless-social-login/uninstall.php";'
+npx wp-env run cli wp option get qrauth_psl_settings   # should error: option removed
+```
 
 ## Architecture essentials
 
