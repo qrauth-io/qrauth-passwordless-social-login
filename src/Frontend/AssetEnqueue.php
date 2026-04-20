@@ -20,14 +20,22 @@ use QRAuth\PasswordlessSocialLogin\Support\Options;
  *
  *  - {@see self::HANDLE_COMPONENTS} — the vendored `@qrauth/web-components`
  *    IIFE, served from the plugin's own `assets/js/` (never from a CDN).
- *    Attached via Subresource Integrity so a future tarball corruption
- *    would fail-closed instead of executing unverified code.
  *  - {@see self::HANDLE_ADAPTER} — our tiny dependency-free bridge that
  *    receives `qrauth:authenticated` events from the widget and POSTs
- *    them to the REST route (landed in P3).
+ *    them to the REST route.
  *
  * The `window.qrauthPsl` global is emitted inline before the adapter so
  * the adapter sees `{ nonce, restUrl }` when it runs.
+ *
+ * Supply-chain integrity is verified at **install/upgrade time** by
+ * `bin/fetch-web-components.mjs`: the npm-tarball SHA-512 is compared
+ * against `package.json` `qrauth.webComponentsIntegrity` before the
+ * IIFE is extracted. A runtime `integrity` attribute on the served
+ * `<script>` tag is intentionally not emitted — the asset is
+ * self-hosted and same-origin, so browser SRI would compare against a
+ * different hash (IIFE + our vendored-by header) and add little value
+ * beyond the build-time check. See SPECS/BACKLOG.md — pentest against
+ * SRI-less load is scheduled before v0.2.0.
  *
  * @since 0.1.0
  */
@@ -44,27 +52,23 @@ final class AssetEnqueue {
 	public const HANDLE_ADAPTER = 'qrauth-psl-adapter';
 
 	/**
-	 * Vendored bundle version.
-	 *
-	 * KEEP IN SYNC with `package.json` `qrauth.webComponentsVersion` — bump
-	 * both together when upgrading `@qrauth/web-components`. The value is
-	 * public (ships in the plugin) and safe to hard-code in PHP.
+	 * Style handle for the login-form widget wrapper.
 	 */
-	public const BUNDLE_VERSION = '0.4.0';
+	public const HANDLE_STYLE = 'qrauth-psl-login';
 
 	/**
-	 * Vendored bundle sha512 SRI.
+	 * Vendored bundle version (used as the `ver=` cache-buster).
 	 *
-	 * KEEP IN SYNC with `package.json` `qrauth.webComponentsIntegrity`.
+	 * KEEP IN SYNC with `package.json` `qrauth.webComponentsVersion` — bump
+	 * both together when upgrading `@qrauth/web-components`.
 	 */
-	public const BUNDLE_SRI = 'sha512-D3DAarUL7Vx1FB95pyNsLbpeXJsxJP9HnGI+enMCPgpkFBQHiR/iyOphEEzAc1RN5w2eYDxBMHIln/U6SDLv4A==';
+	public const BUNDLE_VERSION = '0.4.0';
 
 	/**
 	 * Register WordPress hooks.
 	 */
 	public function boot(): void {
 		add_action( 'login_enqueue_scripts', array( $this, 'enqueue' ) );
-		add_filter( 'script_loader_tag', array( $this, 'filter_script_tag' ), 10, 2 );
 	}
 
 	/**
@@ -88,6 +92,13 @@ final class AssetEnqueue {
 			return;
 		}
 
+		wp_enqueue_style(
+			self::HANDLE_STYLE,
+			plugins_url( 'assets/css/qrauth-login.css', QRAUTH_PSL_FILE ),
+			array(),
+			QRAUTH_PSL_VERSION
+		);
+
 		wp_enqueue_script(
 			self::HANDLE_COMPONENTS,
 			plugins_url( 'assets/js/qrauth-components.js', QRAUTH_PSL_FILE ),
@@ -95,8 +106,6 @@ final class AssetEnqueue {
 			self::BUNDLE_VERSION,
 			true
 		);
-		wp_script_add_data( self::HANDLE_COMPONENTS, 'integrity', self::BUNDLE_SRI );
-		wp_script_add_data( self::HANDLE_COMPONENTS, 'crossorigin', 'anonymous' );
 
 		wp_register_script(
 			self::HANDLE_ADAPTER,
@@ -116,38 +125,5 @@ final class AssetEnqueue {
 			'before'
 		);
 		wp_enqueue_script( self::HANDLE_ADAPTER );
-	}
-
-	/**
-	 * Inject `integrity` + `crossorigin` attributes on the components IIFE tag.
-	 *
-	 * WordPress core's script_loader doesn't emit these from
-	 * `wp_script_add_data()` by default (the keys are stored but only some
-	 * are rendered), so we splice them in via this filter.
-	 *
-	 * @param string $tag    The `<script>` tag for the script being enqueued.
-	 * @param string $handle The script handle.
-	 * @return string
-	 */
-	public function filter_script_tag( string $tag, string $handle ): string {
-		if ( self::HANDLE_COMPONENTS !== $handle ) {
-			return $tag;
-		}
-
-		$scripts     = wp_scripts();
-		$integrity   = $scripts ? $scripts->get_data( $handle, 'integrity' ) : '';
-		$crossorigin = $scripts ? $scripts->get_data( $handle, 'crossorigin' ) : '';
-
-		if ( ! is_string( $integrity ) || '' === $integrity ) {
-			return $tag;
-		}
-
-		$attrs = sprintf( ' integrity="%s"', esc_attr( $integrity ) );
-		if ( is_string( $crossorigin ) && '' !== $crossorigin ) {
-			$attrs .= sprintf( ' crossorigin="%s"', esc_attr( $crossorigin ) );
-		}
-
-		$patched = preg_replace( '/(<script\b)/', '$1' . $attrs, $tag, 1 );
-		return is_string( $patched ) ? $patched : $tag;
 	}
 }
