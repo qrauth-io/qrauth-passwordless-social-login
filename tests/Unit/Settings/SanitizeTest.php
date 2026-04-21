@@ -47,6 +47,36 @@ final class SanitizeTest extends TestCase {
 				return $default_value;
 			}
 		);
+
+		// Default `apply_filters`: passthrough — return whatever value the
+		// caller computed. The tenant_url sanitiser routes through the
+		// `qrauth_psl_allow_localhost_tenant_url` filter with a
+		// `WP_DEBUG`-derived default; in unit-test context `WP_DEBUG` is
+		// not defined, so the default value is false → localhost rejected
+		// by default. Tests that need the "accept" side call
+		// `allow_localhost_filter()` to override.
+		Functions\when( 'apply_filters' )->alias(
+			static function ( $tag, $value ) {
+				unset( $tag );
+				return $value;
+			}
+		);
+	}
+
+	/**
+	 * Override `apply_filters` so the `qrauth_psl_allow_localhost_tenant_url`
+	 * filter returns true — simulates a site running with WP_DEBUG on, or
+	 * one that has explicitly opted into non-HTTPS localhost tenants.
+	 */
+	private function allow_localhost_filter(): void {
+		Functions\when( 'apply_filters' )->alias(
+			static function ( $tag, $value ) {
+				if ( 'qrauth_psl_allow_localhost_tenant_url' === $tag ) {
+					return true;
+				}
+				return $value;
+			}
+		);
 	}
 
 	/**
@@ -113,14 +143,42 @@ final class SanitizeTest extends TestCase {
 	}
 
 	/**
-	 * `http://localhost` and `http://127.0.0.1` are accepted for local dev.
+	 * `http://localhost` and `http://127.0.0.1` are accepted for local
+	 * development — but ONLY when the `qrauth_psl_allow_localhost_tenant_url`
+	 * filter (defaulting to `WP_DEBUG`) returns true.
 	 */
-	public function test_tenant_url_localhost_and_loopback_are_accepted(): void {
+	public function test_tenant_url_localhost_and_loopback_are_accepted_when_filter_on(): void {
+		$this->allow_localhost_filter();
+
 		$clean = Settings::sanitize( array( 'tenant_url' => 'http://localhost:8888' ) );
 		$this->assertSame( 'http://localhost:8888', $clean['tenant_url'] );
 
 		$clean = Settings::sanitize( array( 'tenant_url' => 'http://127.0.0.1:3000' ) );
 		$this->assertSame( 'http://127.0.0.1:3000', $clean['tenant_url'] );
+	}
+
+	/**
+	 * By default (filter off → WP_DEBUG not set → production-like), a
+	 * plain-http localhost tenant_url is rejected and the sanitiser falls
+	 * back to the previous value.
+	 *
+	 * Closes the LOW-1 pentest finding from 2026-04-22: the pre-0.1.13
+	 * sanitiser accepted localhost unconditionally, which let an admin
+	 * point the proxy's outbound wp_remote_request at arbitrary
+	 * internal-network ports.
+	 */
+	public function test_tenant_url_localhost_rejected_when_filter_off(): void {
+		Functions\when( 'get_option' )->alias(
+			static function () {
+				return array( 'tenant_url' => 'https://qrauth.io' );
+			}
+		);
+
+		$clean = Settings::sanitize( array( 'tenant_url' => 'http://localhost:3306' ) );
+		$this->assertSame( 'https://qrauth.io', $clean['tenant_url'] );
+
+		$clean = Settings::sanitize( array( 'tenant_url' => 'http://127.0.0.1:6379' ) );
+		$this->assertSame( 'https://qrauth.io', $clean['tenant_url'] );
 	}
 
 	/**
