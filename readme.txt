@@ -4,7 +4,7 @@ Tags: login, passwordless, qr code, social login, authentication
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.2
-Stable tag: 0.1.4
+Stable tag: 0.1.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -25,7 +25,8 @@ QRAuth replaces the password field on your WordPress login page with a drop-in Q
 1. Upload the plugin or install via WP-Admin → Plugins → Add New.
 2. Activate through the 'Plugins' menu in WordPress.
 3. Go to Settings → QRAuth and paste your Client ID and Client Secret from https://qrauth.io/dashboard/apps/create. The Client Secret is used server-side only — it never reaches the browser.
-4. Log out and try signing in via the "Sign in with QRAuth" button on wp-login.php.
+4. In the QRAuth dashboard (**Apps → your app → Redirect URLs**), register your site's login URL — typically `https://<your-site>/wp-login.php`. Without this registration, sign-in on phones (same-device approval) cannot complete; desktop sign-in works without it. The exact URL to register is shown on the Settings → QRAuth page.
+5. Log out and try signing in via the "Sign in with QRAuth" button on wp-login.php.
 
 == Frequently Asked Questions ==
 
@@ -75,6 +76,10 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 
 == Changelog ==
 
+= 0.1.5 =
+* Added: mobile same-device sign-in. The login widget now emits `redirect-uri` pointing at `wp-login.php`, and the adapter picks up the `qrauth_session_id` / `qrauth_signature` query params that qrauth.io appends when the user approves on their phone. The WP tab being suspended while the user was on qrauth.io no longer breaks the flow.
+* Added: Settings → QRAuth now shows the exact URL admins need to register in their QRAuth app's redirect-URL allowlist (typically `https://<site>/wp-login.php`). Required one-time setup for phone sign-in; desktop still works without it.
+
 = 0.1.4 =
 * Fixed: logins completed past `/verify` on 0.1.3 but bounced with `provision_disabled` — regardless of whether auto-provisioning was on. The widget's scope attribute was emitted as `scope` (singular) while the QRAuth web component reads `scopes` (plural), so only the default `identity` scope was requested and `/verify-result` returned no email. Email-based account matching and new-user provisioning both rely on having the email, so both paths failed with the same error code. Restored the correct attribute name — no action required on upgrade.
 
@@ -102,6 +107,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 * Full i18n scaffolding (POT + Greek translation source).
 
 == Upgrade Notice ==
+
+= 0.1.5 =
+Adds mobile same-device sign-in. One-time setup: register your `/wp-login.php` URL in your QRAuth app's redirect-URL allowlist (Settings → QRAuth shows the exact URL). Desktop sign-in is unaffected either way.
 
 = 0.1.4 =
 Required hotfix. 0.1.3 accepted QRAuth signatures but rejected every login with `provision_disabled` because the widget was requesting only the `identity` scope (the scope attribute name was wrong). Upgrade to restore end-to-end sign-in.

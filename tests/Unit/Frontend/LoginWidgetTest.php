@@ -131,7 +131,7 @@ final class LoginWidgetTest extends TestCase {
 		$this->assertStringContainsString( 'tenant="test-client-id"', $html );
 		$this->assertStringContainsString( 'base-url="https://example.test/wp-json/qrauth-psl/v1"', $html );
 		$this->assertStringContainsString( 'scopes="identity email"', $html );
-		$this->assertStringNotContainsString( 'redirect-uri=', $html );
+		$this->assertStringContainsString( 'redirect-uri="https://example.test/wp-login.php"', $html );
 	}
 
 	/**

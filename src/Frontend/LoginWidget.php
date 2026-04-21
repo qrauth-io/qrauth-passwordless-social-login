@@ -103,6 +103,7 @@ final class LoginWidget {
 				display="<?php echo esc_attr( $display ); ?>"
 				mode="<?php echo esc_attr( $mode ); ?>"
 				scopes="<?php echo esc_attr( implode( ' ', $options['allowed_scopes'] ) ); ?>"
+				redirect-uri="<?php echo esc_url( home_url( '/wp-login.php' ) ); ?>"
 			></qrauth-login>
 		</div>
 		<?php
