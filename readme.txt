@@ -4,7 +4,7 @@ Tags: login, passwordless, qr code, social login, authentication
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.2
-Stable tag: 0.1.9
+Stable tag: 0.1.10
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -75,6 +75,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 
 == Changelog ==
 
+= 0.1.10 =
+* i18n: regenerated the translation template (`languages/qrauth-passwordless-social-login.pot`) and the Greek scaffold (`el_GR.po`) so every user-facing string added between 0.1.1 and 0.1.9 (Client Secret field, Tenant URL description, per-surface enable switches for shortcode and WooCommerce, mobile sign-in setup callout, etc.) is now available to translators. No behaviour changes; string extraction only.
+
 = 0.1.9 =
 * Changed: after a successful sign-in, customers on WooCommerce surfaces now land on their My Account page (or the checkout step, if that's where they started) instead of wp-admin. Sign-ins from wp-login.php still go to wp-admin. Sign-ins from a custom page (shortcode) go back to that page. Decided server-side from the request's Referer, validated same-origin via WordPress core's `wp_validate_redirect` so a forged Referer can't turn this into an open redirect.
 
@@ -121,6 +124,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 * Full i18n scaffolding (POT + Greek translation source).
 
 == Upgrade Notice ==
+
+= 0.1.10 =
+Translation scaffolding only — no behaviour changes. New UI strings from 0.1.1 → 0.1.9 are now picked up by the POT + el_GR.po so translators have a current baseline to work from.
 
 = 0.1.9 =
 Customers signing in through a WooCommerce form now land on My Account (or the checkout step they started on) instead of wp-admin. No configuration change required.

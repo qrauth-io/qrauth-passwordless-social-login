@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.10] — 2026-04-22
+
+### Changed
+
+- **Translation scaffolding regenerated.** `languages/qrauth-passwordless-social-login.pot` rebuilt from current source via `wp i18n make-pot` inside wp-env. String count grew from 41 (0.1.0 baseline) to 56, picking up every user-facing string added across 0.1.1 → 0.1.9 — Client Secret field + help text, Tenant URL description, mobile sign-in setup callout, per-surface enable switches for Anywhere via shortcode and the two WooCommerce entries, and the multilingual allowlist notice.
+- `languages/qrauth-passwordless-social-login-el_GR.po` updated via `msgmerge` against the new POT: existing translations preserved (there were none — the 0.1.0 scaffold shipped empty), new strings carried over with empty msgstrs ready for translation. `el_GR.mo` recompiled.
+
+### Notes
+
+No code changes, no behaviour changes — string extraction only. Translations are not filled in; the plugin continues to ship untranslated as it did in 0.1.0. Once the plugin is accepted on WordPress.org, translators contribute via <https://translate.wordpress.org/> against the POT shipped here.
+
 ## [0.1.9] — 2026-04-22
 
 ### Changed
