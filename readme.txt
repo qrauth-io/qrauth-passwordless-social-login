@@ -4,7 +4,7 @@ Tags: login, passwordless, qr code, social login, authentication
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.2
-Stable tag: 0.1.14
+Stable tag: 0.1.15
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -74,6 +74,8 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 4. WooCommerce registration form — inline widget alongside WC's account-creation fields.
 
 == Changelog ==
+= 0.1.15 =
+* Author URI: https://github.com/aristech
 
 = 0.1.14 =
 * Readme: `Contributors:` field set to `aristech` — the verified wordpress.org account that owns the submission. The prior value (`qrauth`) wasn't a registered wordpress.org profile and would have rendered as a broken contributor badge on the plugin directory page.
