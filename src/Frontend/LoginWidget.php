@@ -76,14 +76,20 @@ final class LoginWidget {
 	}
 
 	/**
-	 * Print the `<qrauth-login>` element plus a short divider.
+	 * Print the `<qrauth-login>` element plus the "— or —" divider above it.
+	 *
+	 * Used by the wp-login.php / registration-form injection sites where
+	 * the widget sits directly below (or beside) the default WP form.
+	 *
+	 * Callers that render the widget outside of a login form context
+	 * (shortcode, future Gutenberg block, WooCommerce flows) should use
+	 * {@see self::render_widget()} instead — the divider makes no sense
+	 * when there is nothing visually "above" it to separate from.
 	 *
 	 * @param string $display `button` or `inline`.
 	 * @param string $mode    `login` or `register` — passed through to the widget.
 	 */
 	public static function emit( string $display, string $mode ): void {
-		$options = Options::all();
-
 		?>
 		<div class="qrauth-psl-widget qrauth-psl-widget--<?php echo esc_attr( $display ); ?>">
 			<p class="qrauth-psl-widget__divider" aria-hidden="true">
@@ -97,15 +103,35 @@ final class LoginWidget {
 					?>
 				</span>
 			</p>
-			<qrauth-login
-				tenant="<?php echo esc_attr( $options['client_id'] ); ?>"
-				base-url="<?php echo esc_attr( $options['api_base_url'] ); ?>"
-				display="<?php echo esc_attr( $display ); ?>"
-				mode="<?php echo esc_attr( $mode ); ?>"
-				scopes="<?php echo esc_attr( implode( ' ', $options['allowed_scopes'] ) ); ?>"
-				redirect-uri="<?php echo esc_url( home_url( '/wp-login.php' ) ); ?>"
-			></qrauth-login>
+			<?php self::render_widget( $display, $mode ); ?>
 		</div>
+		<?php
+	}
+
+	/**
+	 * Print just the `<qrauth-login>` custom element, with no divider or
+	 * wrapper beyond the standard widget class.
+	 *
+	 * Shared rendering path for every non-login surface the widget
+	 * can appear on (shortcode today, Gutenberg block and WooCommerce
+	 * hooks to follow). All of them need the same element + attributes;
+	 * only {@see self::emit()} adds the "— or —" divider above.
+	 *
+	 * @param string $display `button` or `inline`.
+	 * @param string $mode    `login` or `register`.
+	 */
+	public static function render_widget( string $display, string $mode ): void {
+		$options = Options::all();
+
+		?>
+		<qrauth-login
+			tenant="<?php echo esc_attr( $options['client_id'] ); ?>"
+			base-url="<?php echo esc_attr( $options['api_base_url'] ); ?>"
+			display="<?php echo esc_attr( $display ); ?>"
+			mode="<?php echo esc_attr( $mode ); ?>"
+			scopes="<?php echo esc_attr( implode( ' ', $options['allowed_scopes'] ) ); ?>"
+			redirect-uri="<?php echo esc_url( home_url( '/wp-login.php' ) ); ?>"
+		></qrauth-login>
 		<?php
 	}
 }

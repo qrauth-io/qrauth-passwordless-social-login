@@ -14,6 +14,7 @@ defined( 'ABSPATH' ) || exit;
 use QRAuth\PasswordlessSocialLogin\Frontend\AssetEnqueue;
 use QRAuth\PasswordlessSocialLogin\Frontend\LoginWidget;
 use QRAuth\PasswordlessSocialLogin\Frontend\ProfileFields;
+use QRAuth\PasswordlessSocialLogin\Frontend\Shortcode;
 use QRAuth\PasswordlessSocialLogin\Rest\AuthSessionProxyController;
 use QRAuth\PasswordlessSocialLogin\Rest\RestController;
 use QRAuth\PasswordlessSocialLogin\Settings\Settings;
@@ -80,6 +81,13 @@ final class Plugin {
 	private ?ProfileFields $profile = null;
 
 	/**
+	 * `[qrauth_login]` shortcode renderer.
+	 *
+	 * @var Shortcode|null
+	 */
+	private ?Shortcode $shortcode = null;
+
+	/**
 	 * Return the shared plugin instance.
 	 */
 	public static function instance(): self {
@@ -122,6 +130,9 @@ final class Plugin {
 
 		$this->profile = new ProfileFields();
 		$this->profile->boot();
+
+		$this->shortcode = new Shortcode();
+		$this->shortcode->boot();
 	}
 
 	/**

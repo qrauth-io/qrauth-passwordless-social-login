@@ -284,6 +284,33 @@ final class SettingsView {
 									/>
 									<?php esc_html_e( 'User profile (link / unlink account)', 'qrauth-passwordless-social-login' ); ?>
 								</label>
+								<br />
+								<label>
+									<input
+										type="checkbox"
+										name="qrauth_psl_settings[enabled_on][]"
+										value="shortcode"
+										<?php checked( in_array( 'shortcode', $options['enabled_on'], true ), true ); ?>
+									/>
+									<?php
+									printf(
+										/* translators: %s: the shortcode tag, wrapped in <code>. */
+										esc_html__( 'Anywhere via shortcode — %s', 'qrauth-passwordless-social-login' ),
+										'<code>[qrauth_login]</code>'
+									);
+									?>
+								</label>
+								<p class="description">
+									<?php
+									printf(
+										/* translators: 1, 2, 3: example shortcode invocations wrapped in <code>. */
+										esc_html__( 'Place %1$s in any page, post, or widget area. Attributes: %2$s, %3$s.', 'qrauth-passwordless-social-login' ),
+										'<code>[qrauth_login]</code>',
+										'<code>display="inline|button"</code>',
+										'<code>mode="login|register"</code>'
+									);
+									?>
+								</p>
 							</fieldset>
 						</td>
 					</tr>

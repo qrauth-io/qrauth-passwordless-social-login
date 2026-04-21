@@ -4,7 +4,7 @@ Tags: login, passwordless, qr code, social login, authentication
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.2
-Stable tag: 0.1.5
+Stable tag: 0.1.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -76,6 +76,10 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 
 == Changelog ==
 
+= 0.1.6 =
+* Added: `[qrauth_login]` shortcode for placing the widget on any page, post, or widget area. Supports `display="inline|button"` (default `inline`) and `mode="login|register"` (default `login`). Opt in via Settings → QRAuth → "Show widget on" → "Anywhere via shortcode".
+* Widget asset loading now runs on front-end pages when the shortcode is used, not just on `wp-login.php`. The ~65 KB bundle is only emitted on pages that actually render the widget — unused shortcode-enabled sites pay zero bandwidth cost on pages without the tag.
+
 = 0.1.5 =
 * Added: mobile same-device sign-in. The login widget now emits `redirect-uri` pointing at `wp-login.php`, and the adapter picks up the `qrauth_session_id` / `qrauth_signature` query params that qrauth.io appends when the user approves on their phone. The WP tab being suspended while the user was on qrauth.io no longer breaks the flow.
 * Added: Settings → QRAuth now shows the exact URL admins need to register in their QRAuth app's redirect-URL allowlist (typically `https://<site>/wp-login.php`). Required one-time setup for phone sign-in; desktop still works without it.
@@ -107,6 +111,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 * Full i18n scaffolding (POT + Greek translation source).
 
 == Upgrade Notice ==
+
+= 0.1.6 =
+Adds a `[qrauth_login]` shortcode so the widget can live on any page, not just wp-login.php. Opt in from Settings → QRAuth. No existing configuration changes on upgrade.
 
 = 0.1.5 =
 Adds mobile same-device sign-in. One-time setup: register your `/wp-login.php` URL in your QRAuth app's redirect-URL allowlist (Settings → QRAuth shows the exact URL). Desktop sign-in is unaffected either way.
