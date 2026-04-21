@@ -1,6 +1,6 @@
 {
   "name": "qrauth-passwordless-social-login",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "private": true,
   "description": "Build scripts for the QRAuth Passwordless & Social Login WordPress plugin.",
   "license": "GPL-2.0-or-later",

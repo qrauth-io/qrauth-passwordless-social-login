@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.12] — 2026-04-22
+
+### Changed
+
+- **CI / release-infrastructure action versions bumped** for Node.js 24 compatibility. The release workflow was emitting a deprecation warning since the 0.1.1 release (GitHub Actions is force-upgrading Node 20 actions to Node 24 on 2026-06-02), and this rolls it forward early so the warning stops cluttering build logs and we're not scrambling at the deadline.
+  - `actions/checkout@v4` → `@v6`.
+  - `actions/setup-node@v4` → `@v6`.
+  - `softprops/action-gh-release@v2` → `@v3`.
+  - `actions/upload-artifact@v4` → `@v7` (first PR CI run on the branch surfaced this one with a fresh warning — wasn't in the release-log warning we started from).
+  - `ramsey/composer-install@v3` → `@v4` (transitively uses `actions/cache`, which was flagged on the PR CI run).
+- The remaining actions we use (`shivammathur/setup-php@v2`, `WordPress/plugin-check-action@v1`) weren't flagged in either CI run; left at their current pins.
+
+### Notes
+
+No plugin behaviour changes. The plugin itself is byte-identical to 0.1.11 apart from the version bump; only the CI environment that builds and publishes the release ZIP changed.
+
 ## [0.1.11] — 2026-04-22
 
 ### Fixed
