@@ -56,8 +56,27 @@ final class VerifyRequestTest extends TestCase {
 	}
 
 	/**
+	 * The monolith's approve path wraps the base64 signature in a
+	 * `<keyId>:<base64sig>` envelope so `/verify-result` can look up the
+	 * right signing key. Both real-world envelopes must pass.
+	 */
+	public function test_envelope_signatures_pass(): void {
+		$this->assertTrue(
+			VerifyRequest::validate_signature(
+				'ckpxsx1zo0000qh3h9q3jx7e2:' . str_repeat( 'A', 86 ) . '=='
+			)
+		);
+		$this->assertTrue(
+			VerifyRequest::validate_signature(
+				'cm3x4abc123xyz:MEUCIQDabc+123/def456GHIjkl789MNOpqr/stuvwxYZ01234567==='
+			)
+		);
+	}
+
+	/**
 	 * Standard base64 signatures (the monolith's current DER-encoded
-	 * ECDSA output) pass — including `+`, `/`, and `=` padding.
+	 * ECDSA output) pass on their own too — including `+`, `/`, and `=`
+	 * padding. Covers older deployments that haven't adopted the envelope.
 	 */
 	public function test_standard_base64_signatures_pass(): void {
 		$this->assertTrue(

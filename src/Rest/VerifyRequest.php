@@ -48,17 +48,23 @@ final class VerifyRequest {
 	}
 
 	/**
-	 * Signature format — accepts either alphabet QRAuth could emit.
+	 * Signature format — envelope + either alphabet QRAuth could emit.
 	 *
-	 * The monolith signs ECDSA DER bytes and encodes as standard base64
-	 * (`services/signing.ts` comment: "Returns the DER-encoded signature
-	 * as base64") — so `+`, `/`, and `=` padding all appear in real
-	 * signatures. Historical docs sometimes say base64url, so we accept
-	 * both alphabets: `[A-Za-z0-9+/=_-]`. The `+`/`/` vs `-`/`_` choice
-	 * is upstream's to make; we just forward the bytes verbatim to
-	 * `/verify-result`, which does the cryptographic check.
+	 * Real signatures on the wire are a two-part envelope:
+	 * `<keyId>:<base64sig>` (see `packages/api/src/services/auth-session.ts`
+	 * in the monolith — the approve path stores
+	 * `${signingKey.keyId}:${base64sig}` so the verifier can look up the
+	 * right key at verify-result time). The base64 part may use either
+	 * standard (`+`, `/`, `=`) or URL-safe (`-`, `_`) alphabet. The keyId
+	 * is an opaque string (currently cuid-shaped).
 	 *
-	 * Min 24 chars to reject empty / trivially-short inputs.
+	 * Accepted character set: `[A-Za-z0-9+/=_:.-]`. The `:` covers the
+	 * envelope separator; `.` is included for forward-compatibility with
+	 * JWT-style compact envelopes should upstream ever switch.
+	 *
+	 * Semantic validation (key lookup + cryptographic check) happens
+	 * server-side at `/verify-result`; this gate just rejects obviously
+	 * malformed input. Min 24 chars rules out trivially-empty bodies.
 	 *
 	 * @param mixed $value Incoming request value.
 	 * @return bool
@@ -70,6 +76,6 @@ final class VerifyRequest {
 		if ( strlen( $value ) < 24 ) {
 			return false;
 		}
-		return (bool) preg_match( '/^[A-Za-z0-9+\/=_-]+$/', $value );
+		return (bool) preg_match( '/^[A-Za-z0-9+\/=_:.-]+$/', $value );
 	}
 }
