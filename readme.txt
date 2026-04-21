@@ -4,7 +4,7 @@ Tags: login, passwordless, qr code, social login, authentication
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.2
-Stable tag: 0.1.11
+Stable tag: 0.1.12
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -75,6 +75,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 
 == Changelog ==
 
+= 0.1.12 =
+* CI/release infrastructure: bumped all GitHub Actions flagged by the Node-20 deprecation warning (`actions/checkout`, `actions/setup-node`, `softprops/action-gh-release`, `actions/upload-artifact`, `ramsey/composer-install`) to current major versions so every runner step uses Node.js 24. No plugin behaviour changes — only the CI environment that builds + releases the plugin changed.
+
 = 0.1.11 =
 * Fixed: three plugin-check warnings surfaced while preparing the WordPress.org submission. (1) The release ZIP now includes `composer.json` alongside `vendor/` so reviewers can see the provenance of the vendored dependencies. (2) Removed the explicit `load_plugin_textdomain()` call from plugin bootstrap — WordPress 4.6+ auto-loads translations for plugins hosted on wordpress.org, and an explicit call is now discouraged. (3) Trimmed the 0.1.8 upgrade notice to stay under WordPress.org's 300-character limit.
 
@@ -127,6 +130,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 * Full i18n scaffolding (POT + Greek translation source).
 
 == Upgrade Notice ==
+
+= 0.1.12 =
+CI / release-infrastructure bump only — runners now use Node.js 24. Zero runtime behaviour changes.
 
 = 0.1.11 =
 Plugin-check hygiene before WordPress.org submission: composer.json now shipped alongside vendor/, discouraged `load_plugin_textdomain()` call removed, 0.1.8 upgrade notice trimmed under the 300-char cap. No runtime behaviour changes.
