@@ -130,7 +130,7 @@ final class LoginWidgetTest extends TestCase {
 		$this->assertStringContainsString( 'mode="login"', $html );
 		$this->assertStringContainsString( 'tenant="test-client-id"', $html );
 		$this->assertStringContainsString( 'base-url="https://example.test/wp-json/qrauth-psl/v1"', $html );
-		$this->assertStringContainsString( 'scope="identity email"', $html );
+		$this->assertStringContainsString( 'scopes="identity email"', $html );
 		$this->assertStringNotContainsString( 'redirect-uri=', $html );
 	}
 
@@ -161,6 +161,6 @@ final class LoginWidgetTest extends TestCase {
 		LoginWidget::emit( 'button', 'login' );
 		$html = (string) ob_get_clean();
 
-		$this->assertStringContainsString( 'scope="identity email organization"', $html );
+		$this->assertStringContainsString( 'scopes="identity email organization"', $html );
 	}
 }

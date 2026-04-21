@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] — 2026-04-21
+
+### Fixed
+
+- **Widget scope attribute name corrected.** The plugin emitted `<qrauth-login scope="identity email">`, but `@qrauth/web-components` reads the attribute `scopes` (plural — `get scopes(): string { return this.getAttribute('scopes') || 'identity'; }` in `packages/web-components/src/login.ts`). With the wrong attribute name, the component fell back to its default `'identity'`-only scope, POSTed `scopes: ['identity']` to the auth-session API, and the `/verify-result` response never carried an `email` field. That made `VerifyResult::$user_email` null, which in turn made **every** login fail with `provision_disabled` — whether auto-provisioning was on (the provision path refuses to create a user without an email, `UserLinker.php` line 80) or off (the email-match fallback on line 66 is gated on `null !== $result->user_email` and never ran). One missing `s` in an HTML attribute name.
+
+### Notes
+
+Latent since 0.1.0 — masked in sequence by the CORS boundary (fixed in 0.1.1), the UUID/base64url validator regexes (0.1.2), and the signature-envelope alphabet (0.1.3). Each fix uncovered the next latent bug in what turned out to be a four-deep stack. With 0.1.4 the end-to-end flow actually completes.
+
 ## [0.1.3] — 2026-04-21
 
 ### Fixed
