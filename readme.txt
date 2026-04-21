@@ -4,7 +4,7 @@ Tags: login, passwordless, qr code, social login, authentication
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.2
-Stable tag: 0.1.2
+Stable tag: 0.1.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -75,6 +75,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 
 == Changelog ==
 
+= 0.1.3 =
+* Fixed: `/verify` still rejected real logins on 0.1.2 with `rest_invalid_param` because the signature value QRAuth returns is an envelope (`<keyId>:<base64sig>`), and the validator's alphabet didn't include the `:` separator. Added `:` and `.` to the accepted character set. No action required on upgrade.
+
 = 0.1.2 =
 * Fixed: `/verify` rejected every real login with `rest_invalid_param` because the input validators were pinned to old formats. `sessionId` now accepts QRAuth's current cuid format (not only UUIDs); `signature` now accepts standard base64 (with `+`, `/`, `=`) in addition to base64url. No action required on upgrade — auth on existing sites starts working again automatically.
 
@@ -96,6 +99,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 * Full i18n scaffolding (POT + Greek translation source).
 
 == Upgrade Notice ==
+
+= 0.1.3 =
+Required hotfix. 0.1.2 still failed to accept real QRAuth signatures because the envelope separator `:` wasn't in the allowed alphabet. Upgrade to restore end-to-end sign-in.
 
 = 0.1.2 =
 Recommended hotfix. Unblocks end-to-end QRAuth sign-in on sites running 0.1.1 — the `/verify` route's input validators were too strict and rejected every real login. No configuration change required.

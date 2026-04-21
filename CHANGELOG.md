@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] — 2026-04-21
+
+### Fixed
+
+- **`/verify` signature validator accepts the envelope format.** The monolith's approve path stores `${signingKey.keyId}:${base64sig}` on the session so `/verify-result` can look up the right key at verification time (see `packages/api/src/services/auth-session.ts` line 373). The 0.1.2 regex omitted the `:` separator, so every real envelope-format signature failed with `rest_invalid_param`. Alphabet broadened from `[A-Za-z0-9+/=_-]` to `[A-Za-z0-9+/=_:.-]`. The `.` was added at the same time for forward-compatibility with JWT-style compact envelopes.
+
+### Notes
+
+The 0.1.2 fix correctly diagnosed the two latent validator bugs (cuid vs UUID for sessionId, standard vs URL-safe base64 for signature) but missed that the signature is wrapped in an envelope before it reaches the wire — my test cases covered raw base64 but not the `keyId:sig` shape. Added a positive envelope-format test case so this can't regress the same way again.
+
 ## [0.1.2] — 2026-04-21
 
 ### Fixed
