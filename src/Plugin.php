@@ -14,6 +14,7 @@ defined( 'ABSPATH' ) || exit;
 use QRAuth\PasswordlessSocialLogin\Frontend\AssetEnqueue;
 use QRAuth\PasswordlessSocialLogin\Frontend\LoginWidget;
 use QRAuth\PasswordlessSocialLogin\Frontend\ProfileFields;
+use QRAuth\PasswordlessSocialLogin\Rest\AuthSessionProxyController;
 use QRAuth\PasswordlessSocialLogin\Rest\RestController;
 use QRAuth\PasswordlessSocialLogin\Settings\Settings;
 use QRAuth\PasswordlessSocialLogin\Support\Options;
@@ -64,6 +65,14 @@ final class Plugin {
 	private ?RestController $rest = null;
 
 	/**
+	 * REST controller that proxies QRAuth auth-session endpoints so the
+	 * browser widget never crosses a CORS boundary.
+	 *
+	 * @var AuthSessionProxyController|null
+	 */
+	private ?AuthSessionProxyController $proxy = null;
+
+	/**
 	 * Profile-page QRAuth section + unlink handler.
 	 *
 	 * @var ProfileFields|null
@@ -108,17 +117,24 @@ final class Plugin {
 		$this->rest = new RestController();
 		$this->rest->boot();
 
+		$this->proxy = new AuthSessionProxyController();
+		$this->proxy->boot();
+
 		$this->profile = new ProfileFields();
 		$this->profile->boot();
 	}
 
 	/**
-	 * Seed default settings on first activation.
+	 * Seed default settings on first activation, and migrate pre-0.2
+	 * installs forward (base_url → tenant_url, backfill client_secret).
 	 */
 	public function on_activate(): void {
 		if ( false === get_option( Options::OPTION_NAME ) ) {
 			add_option( Options::OPTION_NAME, self::default_settings() );
+			return;
 		}
+
+		Options::migrate();
 	}
 
 	/**

@@ -80,21 +80,67 @@ final class SettingsView {
 
 					<tr>
 						<th scope="row">
-							<label for="qrauth_psl_base_url">
-								<?php esc_html_e( 'Base URL', 'qrauth-passwordless-social-login' ); ?>
+							<label for="qrauth_psl_client_secret">
+								<?php esc_html_e( 'Client Secret', 'qrauth-passwordless-social-login' ); ?>
+							</label>
+						</th>
+						<td>
+							<input
+								type="password"
+								id="qrauth_psl_client_secret"
+								name="qrauth_psl_settings[client_secret]"
+								value=""
+								class="regular-text code"
+								autocomplete="new-password"
+								spellcheck="false"
+							/>
+							<p class="description">
+								<?php
+								if ( '' !== $options['client_secret'] ) {
+									esc_html_e( 'Configured — leave blank to keep the current value. Enter a new value to overwrite.', 'qrauth-passwordless-social-login' );
+								} else {
+									esc_html_e( 'The private Client Secret from your QRAuth app. Used server-side only; never sent to the browser.', 'qrauth-passwordless-social-login' );
+								}
+								?>
+							</p>
+						</td>
+					</tr>
+
+					<tr>
+						<th scope="row">
+							<label for="qrauth_psl_tenant_url">
+								<?php esc_html_e( 'Tenant URL', 'qrauth-passwordless-social-login' ); ?>
 							</label>
 						</th>
 						<td>
 							<input
 								type="url"
-								id="qrauth_psl_base_url"
-								name="qrauth_psl_settings[base_url]"
-								value="<?php echo esc_attr( $options['base_url'] ); ?>"
+								id="qrauth_psl_tenant_url"
+								name="qrauth_psl_settings[tenant_url]"
+								value="<?php echo esc_attr( $options['tenant_url'] ); ?>"
 								class="regular-text code"
 							/>
 							<p class="description">
-								<?php esc_html_e( 'Only https:// is accepted (http://localhost or http://127.0.0.1 allowed for local development).', 'qrauth-passwordless-social-login' ); ?>
+								<?php
+								printf(
+									/* translators: 1: the default tenant URL, 2: the localhost URL allowed for local development. */
+									esc_html__( 'Leave this set to %1$s unless your organisation runs a self-hosted QRAuth instance. Only https:// URLs are accepted (%2$s is allowed for local development).', 'qrauth-passwordless-social-login' ),
+									'<code>https://qrauth.io</code>',
+									'<code>http://localhost</code>'
+								);
+								?>
 							</p>
+							<?php if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) : ?>
+								<p class="description">
+									<?php
+									printf(
+										/* translators: %s: the WordPress REST URL this site exposes to the browser widget. Only shown when WP_DEBUG is on. */
+										esc_html__( 'Debug — browser widget talks to: %s', 'qrauth-passwordless-social-login' ),
+										'<code>' . esc_html( $options['api_base_url'] ) . '</code>'
+									);
+									?>
+								</p>
+							<?php endif; ?>
 						</td>
 					</tr>
 

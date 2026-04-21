@@ -37,7 +37,8 @@ final class UnlinkFlowTest extends WP_UnitTestCase {
 			Options::OPTION_NAME,
 			array(
 				'client_id'      => 'cid',
-				'base_url'       => 'https://qrauth.io',
+				'client_secret'  => 'csec',
+				'tenant_url'     => 'https://qrauth.io',
 				'auto_provision' => true,
 				'default_role'   => 'subscriber',
 				'allowed_scopes' => array( 'identity', 'email' ),
