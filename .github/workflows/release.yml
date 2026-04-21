@@ -1,0 +1,98 @@
+name: Release
+
+# Two trigger modes:
+#
+#   1. push a `v*` tag (e.g. `git tag v0.1.0 && git push --tags`) — builds
+#      the plugin tarball and attaches it to the auto-created GitHub Release
+#      for that tag. This is what users download from the Releases page
+#      when they install manually via wp-admin → Plugins → Add New → Upload.
+#
+#   2. run the workflow manually (Actions → Release → Run workflow) — builds
+#      the same tarball and uploads it as a workflow artifact you can
+#      download from the run page. Useful for pre-release builds before a
+#      tag exists.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build installable ZIP
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          tools: composer
+          coverage: none
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install production composer deps
+        # No dev deps — WPCS, PHPUnit, WP-CLI scaffolding don't ship.
+        run: composer install --no-dev --optimize-autoloader --no-interaction
+
+      - name: Build plugin assets (fetch the vendored IIFE)
+        run: npm run build:assets
+
+      - name: Assemble clean plugin tree
+        # Mirrors the WP.org tarball shape — same exclude list as the
+        # plugin-check job in ci.yml. The target directory name IS the
+        # plugin slug, so when the resulting zip is extracted WP's
+        # "Upload Plugin" flow sees the correct folder at the top level.
+        run: |
+          mkdir -p ./build/qrauth-passwordless-social-login
+          rsync -a \
+            --exclude=".git/" \
+            --exclude=".github/" \
+            --exclude="SPECS/" \
+            --exclude="node_modules/" \
+            --exclude="tests/" \
+            --exclude="bin/" \
+            --exclude="build/" \
+            --exclude=".editorconfig" \
+            --exclude=".gitattributes" \
+            --exclude=".gitignore" \
+            --exclude=".phpcs.cache" \
+            --exclude=".wp-env.json" \
+            --exclude="CLAUDE.md" \
+            --exclude="composer.json" \
+            --exclude="composer.lock" \
+            --exclude="package.json" \
+            --exclude="package-lock.json" \
+            --exclude="phpcs.xml.dist" \
+            --exclude="phpunit.xml.dist" \
+            --exclude=".gitkeep" \
+            ./ ./build/qrauth-passwordless-social-login/
+
+      - name: Create ZIP
+        working-directory: ./build
+        run: |
+          zip -rq ../qrauth-passwordless-social-login.zip qrauth-passwordless-social-login
+          ls -la ../qrauth-passwordless-social-login.zip
+
+      - name: Attach ZIP to the GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: qrauth-passwordless-social-login.zip
+          generate_release_notes: true
+
+      - name: Upload ZIP as workflow artifact (manual dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: qrauth-passwordless-social-login
+          path: qrauth-passwordless-social-login.zip
+          retention-days: 14
