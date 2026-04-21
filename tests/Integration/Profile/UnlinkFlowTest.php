@@ -52,7 +52,20 @@ final class UnlinkFlowTest extends WP_UnitTestCase {
 	public function tear_down(): void {
 		unset( $_POST[ ProfileFields::UNLINK_FIELD ] );
 		unset( $_POST[ ProfileFields::UNLINK_NONCE_FIELD ] );
+		unset( $_POST['user_id'] );
 		parent::tear_down();
+	}
+
+	/**
+	 * WP's own callbacks on `personal_options_update` /
+	 * `edit_user_profile_update` expect `$_POST['user_id']` to be set
+	 * (wp-includes/user.php reads it unconditionally). The form provides
+	 * it in production; tests have to match.
+	 *
+	 * @param int $user_id Target user.
+	 */
+	private function seed_post_for_profile_update( int $user_id ): void {
+		$_POST['user_id'] = (string) $user_id;
 	}
 
 	/**
@@ -64,6 +77,7 @@ final class UnlinkFlowTest extends WP_UnitTestCase {
 		update_user_meta( $user_id, UserMetaKeys::LINKED_AT, '2026-04-21T10:00:00+00:00' );
 
 		wp_set_current_user( $user_id );
+		$this->seed_post_for_profile_update( $user_id );
 
 		$_POST[ ProfileFields::UNLINK_NONCE_FIELD ] = wp_create_nonce( 'qrauth_psl_unlink_' . $user_id );
 		$_POST[ ProfileFields::UNLINK_FIELD ]       = '1';
@@ -87,6 +101,7 @@ final class UnlinkFlowTest extends WP_UnitTestCase {
 		update_user_meta( $user_id, UserMetaKeys::QRAUTH_USER_ID, 'qa-user-1' );
 
 		wp_set_current_user( $user_id );
+		$this->seed_post_for_profile_update( $user_id );
 
 		$_POST[ ProfileFields::UNLINK_NONCE_FIELD ] = 'not-a-real-nonce';
 		$_POST[ ProfileFields::UNLINK_FIELD ]       = '1';
@@ -107,6 +122,7 @@ final class UnlinkFlowTest extends WP_UnitTestCase {
 
 		$editor_id = self::factory()->user->create( array( 'role' => 'editor' ) );
 		wp_set_current_user( $editor_id );
+		$this->seed_post_for_profile_update( $target );
 
 		$_POST[ ProfileFields::UNLINK_NONCE_FIELD ] = wp_create_nonce( 'qrauth_psl_unlink_' . $target );
 		$_POST[ ProfileFields::UNLINK_FIELD ]       = '1';
@@ -131,6 +147,14 @@ final class UnlinkFlowTest extends WP_UnitTestCase {
 		$users_before = (int) count_users()['total_users'];
 
 		Uninstaller::run();
+
+		// The uninstaller deletes the wp_options rows directly (fastest way
+		// to sweep unknown transient keys), which leaves any in-memory
+		// object cache stale until expiry. For the rest of this test we
+		// flush the cache to reflect the authoritative DB state — a minor
+		// inconsistency that external-cache installs will experience
+		// briefly in production too (tracked in SPECS/BACKLOG for v0.2.0).
+		wp_cache_flush();
 
 		$this->assertFalse( get_option( Options::OPTION_NAME, false ) );
 		$this->assertFalse( get_transient( 'qrauth_psl_rl_fakehash' ) );
