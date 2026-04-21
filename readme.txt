@@ -4,7 +4,7 @@ Tags: login, passwordless, qr code, social login, authentication
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.2
-Stable tag: 0.1.0
+Stable tag: 0.1.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -24,7 +24,7 @@ QRAuth replaces the password field on your WordPress login page with a drop-in Q
 
 1. Upload the plugin or install via WP-Admin → Plugins → Add New.
 2. Activate through the 'Plugins' menu in WordPress.
-3. Go to Settings → QRAuth and paste your Client ID from https://qrauth.io/dashboard/apps/create. No client secret is needed (QRAuth uses the PKCE public-client pattern).
+3. Go to Settings → QRAuth and paste your Client ID and Client Secret from https://qrauth.io/dashboard/apps/create. The Client Secret is used server-side only — it never reaches the browser.
 4. Log out and try signing in via the "Sign in with QRAuth" button on wp-login.php.
 
 == Frequently Asked Questions ==
@@ -75,6 +75,13 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 
 == Changelog ==
 
+= 0.1.1 =
+* Added a same-origin REST proxy (`qrauth-psl/v1/api/v1/auth-sessions`, `…/a/<token>`) so the login widget talks to your site's own WordPress REST API. No more browser-level CORS errors on third-party hosts.
+* New **Client Secret** setting. Used server-side only to authenticate the proxy against qrauth.io. Never exposed to the browser.
+* Options rename: `base_url` → `tenant_url`. Existing configurations are migrated automatically on upgrade; no manual action required.
+* Tenant URL help text clarified for non-technical admins; a debug line showing the effective REST URL is now emitted only when `WP_DEBUG` is on.
+* Dropped the widget's `redirect-uri` attribute — it was never used by the plugin and triggered exact-match allowlist rejections on qrauth.io.
+
 = 0.1.0 =
 * Initial public release.
 * Passwordless sign-in on wp-login.php via the vendored QRAuth web component (v0.4.0).
@@ -86,6 +93,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 * Full i18n scaffolding (POT + Greek translation source).
 
 == Upgrade Notice ==
+
+= 0.1.1 =
+Adds a same-origin REST proxy that eliminates browser CORS errors. Upgrading requires adding a Client Secret in Settings → QRAuth; the existing Client ID and the renamed Tenant URL (previously "Base URL") are migrated automatically.
 
 = 0.1.0 =
 Initial public release.
