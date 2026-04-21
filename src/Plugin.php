@@ -13,6 +13,7 @@ defined( 'ABSPATH' ) || exit;
 
 use QRAuth\PasswordlessSocialLogin\Frontend\AssetEnqueue;
 use QRAuth\PasswordlessSocialLogin\Frontend\LoginWidget;
+use QRAuth\PasswordlessSocialLogin\Frontend\ProfileFields;
 use QRAuth\PasswordlessSocialLogin\Rest\RestController;
 use QRAuth\PasswordlessSocialLogin\Settings\Settings;
 use QRAuth\PasswordlessSocialLogin\Support\Options;
@@ -63,6 +64,13 @@ final class Plugin {
 	private ?RestController $rest = null;
 
 	/**
+	 * Profile-page QRAuth section + unlink handler.
+	 *
+	 * @var ProfileFields|null
+	 */
+	private ?ProfileFields $profile = null;
+
+	/**
 	 * Return the shared plugin instance.
 	 */
 	public static function instance(): self {
@@ -99,6 +107,9 @@ final class Plugin {
 
 		$this->rest = new RestController();
 		$this->rest->boot();
+
+		$this->profile = new ProfileFields();
+		$this->profile->boot();
 	}
 
 	/**
