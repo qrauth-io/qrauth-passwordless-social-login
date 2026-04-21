@@ -4,7 +4,7 @@ Tags: login, passwordless, qr code, social login, authentication
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.2
-Stable tag: 0.1.10
+Stable tag: 0.1.11
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -75,6 +75,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 
 == Changelog ==
 
+= 0.1.11 =
+* Fixed: three plugin-check warnings surfaced while preparing the WordPress.org submission. (1) The release ZIP now includes `composer.json` alongside `vendor/` so reviewers can see the provenance of the vendored dependencies. (2) Removed the explicit `load_plugin_textdomain()` call from plugin bootstrap — WordPress 4.6+ auto-loads translations for plugins hosted on wordpress.org, and an explicit call is now discouraged. (3) Trimmed the 0.1.8 upgrade notice to stay under WordPress.org's 300-character limit.
+
 = 0.1.10 =
 * i18n: regenerated the translation template (`languages/qrauth-passwordless-social-login.pot`) and the Greek scaffold (`el_GR.po`) so every user-facing string added between 0.1.1 and 0.1.9 (Client Secret field, Tenant URL description, per-surface enable switches for shortcode and WooCommerce, mobile sign-in setup callout, etc.) is now available to translators. No behaviour changes; string extraction only.
 
@@ -125,6 +128,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 
 == Upgrade Notice ==
 
+= 0.1.11 =
+Plugin-check hygiene before WordPress.org submission: composer.json now shipped alongside vendor/, discouraged `load_plugin_textdomain()` call removed, 0.1.8 upgrade notice trimmed under the 300-char cap. No runtime behaviour changes.
+
 = 0.1.10 =
 Translation scaffolding only — no behaviour changes. New UI strings from 0.1.1 → 0.1.9 are now picked up by the POT + el_GR.po so translators have a current baseline to work from.
 
@@ -132,7 +138,7 @@ Translation scaffolding only — no behaviour changes. New UI strings from 0.1.1
 Customers signing in through a WooCommerce form now land on My Account (or the checkout step they started on) instead of wp-admin. No configuration change required.
 
 = 0.1.8 =
-Fixes two UX issues on mobile / multilingual sites: (1) scanning a QR from another device no longer signs in the scanning phone, only the device that actually initiated the session; (2) the redirect URL is language-neutral so WPML / Polylang / Weglot sites only need one allowlist entry, not one per language.
+Mobile / multilingual fixes: a phone scanning a QR from another device no longer signs itself in; the redirect URL is language-neutral so WPML / Polylang / Weglot sites need only one allowlist entry.
 
 = 0.1.7 =
 Adds WooCommerce support — the widget can now appear on the My Account login/register forms and on the checkout sign-in step. Opt in per-surface under Settings → QRAuth.
