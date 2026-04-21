@@ -2,9 +2,11 @@
 /**
  * Uninstall cleanup for QRAuth – Passwordless & Social Login.
  *
- * Removes plugin-owned options only. Does NOT remove user meta created
- * when users linked their QRAuth identity — that is handled per-user
- * via the profile "Unlink" control.
+ * Removes plugin-owned options + transients only. Does NOT touch
+ * `wp_users` or `wp_usermeta` — users keep their accounts (role,
+ * posts, comments) and their QRAuth link metadata so a reinstall
+ * re-attaches without forcing them to re-link. Per-user unlinking
+ * is a separate flow on the profile page (see `ProfileFields`).
  *
  * @package QRAuth\PasswordlessSocialLogin
  */
@@ -16,4 +18,6 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 	exit;
 }
 
-delete_option( 'qrauth_psl_settings' );
+require_once __DIR__ . '/vendor/autoload.php';
+
+\QRAuth\PasswordlessSocialLogin\Uninstall\Uninstaller::run();

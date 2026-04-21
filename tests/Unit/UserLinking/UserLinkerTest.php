@@ -308,4 +308,84 @@ final class UserLinkerTest extends TestCase {
 			$this->assertSame( 'internal_error', $e->get_machine_code() );
 		}
 	}
+
+	/**
+	 * Caller without `edit_user` capability → unlink returns false and
+	 * doesn't touch user_meta.
+	 */
+	public function test_unlink_without_capability_returns_false(): void {
+		Functions\when( 'current_user_can' )->justReturn( false );
+
+		$deletes = 0;
+		Functions\when( 'delete_user_meta' )->alias(
+			static function () use ( &$deletes ) {
+				++$deletes;
+				return true;
+			}
+		);
+
+		$linker = new UserLinker();
+
+		$this->assertFalse( $linker->unlink( 42 ) );
+		$this->assertSame( 0, $deletes );
+	}
+
+	/**
+	 * Unlinking an already-unlinked user returns false (nothing to remove).
+	 */
+	public function test_unlink_unlinked_user_returns_false(): void {
+		Functions\when( 'current_user_can' )->justReturn( true );
+		Functions\when( 'get_user_meta' )->justReturn( '' );
+		Functions\when( 'delete_user_meta' )->justReturn( true );
+
+		$linker = new UserLinker();
+
+		$this->assertFalse( $linker->unlink( 42 ) );
+	}
+
+	/**
+	 * Happy path: meta is deleted and the unlink action fires exactly once.
+	 */
+	public function test_unlink_linked_user_deletes_meta_and_fires_action(): void {
+		Functions\when( 'current_user_can' )->justReturn( true );
+		Functions\when( 'get_user_meta' )->alias(
+			static function ( $user_id, $key ) {
+				if ( UserMetaKeys::QRAUTH_USER_ID === $key ) {
+					return 'qa-user-1';
+				}
+				if ( UserMetaKeys::LINKED_AT === $key ) {
+					return '2026-04-21T10:00:00+00:00';
+				}
+				return '';
+			}
+		);
+
+		$deletes = array();
+		Functions\when( 'delete_user_meta' )->alias(
+			static function ( $user_id, $key ) use ( &$deletes ) {
+				$deletes[] = array(
+					'user_id' => $user_id,
+					'key'     => $key,
+				);
+				return true;
+			}
+		);
+
+		$actions = array();
+		Functions\when( 'do_action' )->alias(
+			static function ( ...$args ) use ( &$actions ) {
+				$actions[] = $args;
+			}
+		);
+
+		$linker = new UserLinker();
+
+		$this->assertTrue( $linker->unlink( 7 ) );
+		$this->assertCount( 2, $deletes );
+		$this->assertSame( UserMetaKeys::QRAUTH_USER_ID, $deletes[0]['key'] );
+		$this->assertSame( UserMetaKeys::LINKED_AT, $deletes[1]['key'] );
+
+		$action_names = array_column( $actions, 0 );
+		$this->assertContains( 'qrauth_psl_user_unlinked', $action_names );
+	}
 }

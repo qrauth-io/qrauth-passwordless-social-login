@@ -111,6 +111,40 @@ final class UserLinker {
 	}
 
 	/**
+	 * Detach QRAuth from a WP user account.
+	 *
+	 * Removes the link metadata only — the WP account itself (role, posts,
+	 * comments, sessions, etc.) is preserved. Re-linking remains possible
+	 * via the next successful sign-in.
+	 *
+	 * Callers must be `edit_user`-capable on the target user (admins can
+	 * unlink anyone; regular users can only unlink themselves).
+	 *
+	 * @param int $user_id WP user ID to unlink.
+	 * @return bool True on success, false if the caller lacks capability or
+	 *              the user had no link metadata to remove.
+	 */
+	public function unlink( int $user_id ): bool {
+		if ( ! current_user_can( 'edit_user', $user_id ) ) {
+			return false;
+		}
+
+		$had_qrauth_id = (bool) get_user_meta( $user_id, UserMetaKeys::QRAUTH_USER_ID, true );
+		$had_linked_at = (bool) get_user_meta( $user_id, UserMetaKeys::LINKED_AT, true );
+
+		if ( ! $had_qrauth_id && ! $had_linked_at ) {
+			return false;
+		}
+
+		delete_user_meta( $user_id, UserMetaKeys::QRAUTH_USER_ID );
+		delete_user_meta( $user_id, UserMetaKeys::LINKED_AT );
+
+		do_action( 'qrauth_psl_user_unlinked', $user_id );
+
+		return true;
+	}
+
+	/**
 	 * Write the `qrauth_psl_user_id` + `qrauth_psl_linked_at` meta for a user.
 	 *
 	 * @param int          $user_id WP user ID.
