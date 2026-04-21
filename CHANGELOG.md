@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] — 2026-04-21
+
+### Fixed
+
+- **`/verify` input validators accept current QRAuth formats.** The `sessionId` validator was pinned to a strict UUID regex, but `AuthSession.id` has been cuid-shaped (`@default(cuid())`, ~24 lowercase alphanumeric chars, no dashes) all along. The `signature` validator accepted only base64url alphabet, but QRAuth's signing service returns DER-encoded ECDSA as standard base64 (with `+`, `/`, `=` padding). Both failures returned `rest_invalid_param` on every login attempt. Replaced with opaque-ID and union-alphabet allowlists: `sessionId` matches `^[A-Za-z0-9_-]{8,128}$`; `signature` matches `^[A-Za-z0-9+/=_-]{24,}$` with a 24-char minimum. Semantic validation remains upstream at `/verify-result`; these regexes are now explicitly "not-obviously-garbage" gates rather than format-pin checks.
+
+### Notes
+
+Both bugs predate the CORS-proxy work in 0.1.1 — they were latent in 0.1.0, masked because browsers couldn't reach `/verify` across the CORS boundary on third-party WP hosts. Once 0.1.1 enabled end-to-end auth via the same-origin proxy, every login hit the validators against real input for the first time and failed.
+
 ## [0.1.1] — 2026-04-21
 
 ### Added
