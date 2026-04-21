@@ -1,10 +1,10 @@
 === QRAuth – Passwordless & Social Login ===
-Contributors: qrauth
+Contributors: aristech
 Tags: login, passwordless, qr code, social login, authentication
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.2
-Stable tag: 0.1.13
+Stable tag: 0.1.14
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -75,6 +75,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 
 == Changelog ==
 
+= 0.1.14 =
+* Readme: `Contributors:` field set to `aristech` — the verified wordpress.org account that owns the submission. The prior value (`qrauth`) wasn't a registered wordpress.org profile and would have rendered as a broken contributor badge on the plugin directory page.
+
 = 0.1.13 =
 * Security (low-severity hardening): the Tenant URL sanitiser now rejects `http://localhost` and `http://127.0.0.1` values on production sites — they're only accepted when `WP_DEBUG` is on (local development) or when a site operator explicitly opts in via the new `qrauth_psl_allow_localhost_tenant_url` filter. Closes a pentest finding: an admin with `manage_options` could previously point Tenant URL at arbitrary localhost ports (e.g. MySQL, Redis), using the plugin's outbound `wp_remote_request` as a port-scanning oracle against the WP host's internal network. Now admin-gated SSRF via this path is blocked by default; `https://` tenants remain accepted unchanged.
 
@@ -133,6 +136,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 * Full i18n scaffolding (POT + Greek translation source).
 
 == Upgrade Notice ==
+
+= 0.1.14 =
+Cosmetic readme fix — `Contributors:` now points at the actual wordpress.org profile. No runtime changes.
 
 = 0.1.13 =
 Security hardening — Tenant URL sanitiser now rejects plain-http localhost values unless `WP_DEBUG` is on or the `qrauth_psl_allow_localhost_tenant_url` filter opts in. Blocks an admin-gated SSRF probe path. No action required for sites using `https://` tenants.

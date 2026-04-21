@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.14] — 2026-04-22
+
+### Changed
+
+- **`readme.txt` `Contributors:` field set to `aristech`.** The prior value (`qrauth`) wasn't a registered wordpress.org profile — it would have rendered as a broken contributor badge on the public plugin directory listing. `aristech` is the verified wp.org account that owns the WP.org submission. A brand account can be registered and added later via a follow-up readme change (e.g. `Contributors: aristech, qrauth`) without any code change.
+
+### Notes
+
+Shipped right before WordPress.org submission so the submitted ZIP's readme matches the verified committer account. No runtime behaviour changes.
+
 ## [0.1.13] — 2026-04-22
 
 ### Security
