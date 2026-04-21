@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.6] — 2026-04-21
+
+### Added
+
+- **`[qrauth_login]` shortcode.** New `Frontend\Shortcode` registers the tag. Attributes: `display="inline|button"` (default `inline`, clamped to the allowlist), `mode="login|register"` (default `login`). Both attributes are validated against the widget's documented values; unknown values fall back to the defaults rather than propagating garbage to the element attributes. Opt in per-site via Settings → QRAuth → "Show widget on" → "Anywhere via shortcode" (off by default — activating the plugin never injects a widget on a surface the admin didn't explicitly mark up).
+- **Front-end asset enqueueing.** `AssetEnqueue` now hooks `wp_enqueue_scripts` alongside the existing `login_enqueue_scripts`. On front-end pages the handles are **registered but not enqueued**; the shortcode callback (and future Gutenberg block / WooCommerce hook callbacks) flip activation via `AssetEnqueue::enqueue_for_widget()`. Pages that don't render the widget don't ship the ~65 KB IIFE — activated only on-demand, deduped across multiple widget instances per request.
+
+### Changed
+
+- `LoginWidget::emit()` refactored to delegate the `<qrauth-login>` markup to a new `LoginWidget::render_widget()` static helper. The shortcode reuses this helper so both surfaces render byte-identical element markup (attributes, base-url, redirect-uri, scope list). The divider (`— or —`) stays in `emit()` — it's login-form-specific and would read awkwardly on a custom page.
+
 ## [0.1.5] — 2026-04-21
 
 ### Added

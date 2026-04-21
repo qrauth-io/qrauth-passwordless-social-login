@@ -1,6 +1,7 @@
 <?php
 /**
- * Enqueue the vendored web-components IIFE + the adapter on wp-login.php.
+ * Enqueue the vendored web-components IIFE + the adapter on wp-login.php
+ * and on any front-end page that actually renders the widget.
  *
  * @package QRAuth\PasswordlessSocialLogin
  */
@@ -14,27 +15,27 @@ defined( 'ABSPATH' ) || exit;
 use QRAuth\PasswordlessSocialLogin\Support\Options;
 
 /**
- * Handles wp-login.php asset loading.
+ * Handles script + style registration and enqueuing.
  *
- * Two scripts are wired up:
+ * Two hook entry points, same registered handles:
  *
- *  - {@see self::HANDLE_COMPONENTS} — the vendored `@qrauth/web-components`
- *    IIFE, served from the plugin's own `assets/js/` (never from a CDN).
- *  - {@see self::HANDLE_ADAPTER} — our tiny dependency-free bridge that
- *    receives `qrauth:authenticated` events from the widget and POSTs
- *    them to the REST route.
+ *  - {@see self::on_login_page()} (hooked to `login_enqueue_scripts`) —
+ *    registers **and** enqueues the assets on wp-login.php, because the
+ *    widget is always rendered there when the plugin is configured.
+ *  - {@see self::on_frontend_page()} (hooked to `wp_enqueue_scripts`) —
+ *    registers the assets on every front-end page but only enqueues them
+ *    when a caller (shortcode, WooCommerce hook, Gutenberg block) flips
+ *    the activation flag via {@see self::enqueue_for_widget()}. This
+ *    keeps the ~65 KB IIFE off pages that don't actually render the
+ *    widget.
  *
- * The `window.qrauthPsl` global is emitted inline before the adapter so
- * the adapter sees `{ nonce, restUrl }` when it runs.
- *
- * Supply-chain integrity is verified at **install/upgrade time** by
- * `bin/fetch-web-components.mjs`: the npm-tarball SHA-512 is compared
- * against `package.json` `qrauth.webComponentsIntegrity` before the
- * IIFE is extracted. A runtime `integrity` attribute on the served
- * `<script>` tag is intentionally not emitted — the asset is
+ * Supply-chain integrity for the vendored IIFE is verified at
+ * **install/upgrade time** by `bin/fetch-web-components.mjs` (tarball
+ * SHA-512 pinned in `package.json`). A runtime `integrity` attribute on
+ * the served `<script>` tag is intentionally not emitted — the asset is
  * self-hosted and same-origin, so browser SRI would compare against a
  * different hash (IIFE + our vendored-by header) and add little value
- * beyond the build-time check. See SPECS/BACKLOG.md — pentest against
+ * beyond the build-time check. See `SPECS/BACKLOG.md`: pentest against
  * SRI-less load is scheduled before v0.2.0.
  *
  * @since 0.1.0
@@ -68,17 +69,18 @@ final class AssetEnqueue {
 	 * Register WordPress hooks.
 	 */
 	public function boot(): void {
-		add_action( 'login_enqueue_scripts', array( $this, 'enqueue' ) );
+		add_action( 'login_enqueue_scripts', array( $this, 'on_login_page' ) );
+		add_action( 'wp_enqueue_scripts', array( $this, 'on_frontend_page' ) );
 	}
 
 	/**
-	 * Enqueue the components IIFE + adapter, with the `qrauthPsl` globals.
+	 * `login_enqueue_scripts` handler — register + enqueue on wp-login.php.
 	 *
 	 * Short-circuits when the plugin is not yet configured (no client_id),
-	 * and when neither of the login-form injection points is enabled — in
-	 * both cases, loading the IIFE would be wasted bandwidth.
+	 * and when neither of the login-form injection points is enabled —
+	 * in both cases, loading the IIFE would be wasted bandwidth.
 	 */
-	public function enqueue(): void {
+	public function on_login_page(): void {
 		$options = Options::all();
 
 		if ( '' === $options['client_id'] ) {
@@ -92,14 +94,67 @@ final class AssetEnqueue {
 			return;
 		}
 
-		wp_enqueue_style(
+		self::register_assets();
+
+		wp_enqueue_style( self::HANDLE_STYLE );
+		wp_enqueue_script( self::HANDLE_COMPONENTS );
+		wp_enqueue_script( self::HANDLE_ADAPTER );
+	}
+
+	/**
+	 * `wp_enqueue_scripts` handler — register only on front-end pages.
+	 *
+	 * Callers that actually render the widget (the shortcode today; the
+	 * Gutenberg block + WooCommerce hooks to follow) activate the
+	 * registered handles via {@see self::enqueue_for_widget()}. Without
+	 * that call the handles stay registered-but-idle and WP doesn't
+	 * output any `<script>` / `<link>` tags — zero bandwidth impact on
+	 * pages that don't use the widget.
+	 */
+	public function on_frontend_page(): void {
+		if ( '' === (string) Options::get( 'client_id' ) ) {
+			return;
+		}
+
+		self::register_assets();
+	}
+
+	/**
+	 * Activate the registered assets so WP emits them on the current page.
+	 *
+	 * Idempotent — safe to call multiple times in a single request (e.g.
+	 * one post with two shortcodes, or a shortcode on a page that also
+	 * has a WooCommerce login form). `wp_enqueue_*` deduplicates by
+	 * handle.
+	 *
+	 * Callers must have run through `on_frontend_page()` first (i.e.
+	 * they must be on `wp_enqueue_scripts` or later); otherwise the
+	 * handles won't be registered yet. In practice this is always true
+	 * for shortcode callbacks and WC hook callbacks.
+	 */
+	public static function enqueue_for_widget(): void {
+		wp_enqueue_style( self::HANDLE_STYLE );
+		wp_enqueue_script( self::HANDLE_COMPONENTS );
+		wp_enqueue_script( self::HANDLE_ADAPTER );
+	}
+
+	/**
+	 * Register the three handles + the inline `qrauthPsl` globals.
+	 *
+	 * Split out so both hook entry points can share the registration
+	 * logic without duplicating the URLs, versions, and nonce payload.
+	 * Safe to call repeatedly — `wp_register_*` is tolerant of re-calls
+	 * with the same handle.
+	 */
+	private static function register_assets(): void {
+		wp_register_style(
 			self::HANDLE_STYLE,
 			plugins_url( 'assets/css/qrauth-login.css', QRAUTH_PSL_FILE ),
 			array(),
 			QRAUTH_PSL_VERSION
 		);
 
-		wp_enqueue_script(
+		wp_register_script(
 			self::HANDLE_COMPONENTS,
 			plugins_url( 'assets/js/qrauth-components.js', QRAUTH_PSL_FILE ),
 			array(),
@@ -114,6 +169,7 @@ final class AssetEnqueue {
 			QRAUTH_PSL_VERSION,
 			true
 		);
+
 		wp_add_inline_script(
 			self::HANDLE_ADAPTER,
 			'window.qrauthPsl=' . wp_json_encode(
@@ -124,6 +180,5 @@ final class AssetEnqueue {
 			) . ';',
 			'before'
 		);
-		wp_enqueue_script( self::HANDLE_ADAPTER );
 	}
 }
