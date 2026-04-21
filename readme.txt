@@ -4,7 +4,7 @@ Tags: login, passwordless, qr code, social login, authentication
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.2
-Stable tag: 0.1.8
+Stable tag: 0.1.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -75,6 +75,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 
 == Changelog ==
 
+= 0.1.9 =
+* Changed: after a successful sign-in, customers on WooCommerce surfaces now land on their My Account page (or the checkout step, if that's where they started) instead of wp-admin. Sign-ins from wp-login.php still go to wp-admin. Sign-ins from a custom page (shortcode) go back to that page. Decided server-side from the request's Referer, validated same-origin via WordPress core's `wp_validate_redirect` so a forged Referer can't turn this into an open redirect.
+
 = 0.1.8 =
 * Fixed: cross-device QR scan no longer inadvertently signs in the scanning device. Previously, a phone that scanned a desktop-initiated QR and approved on qrauth.io would get redirected back to wp-login.php and auto-sign-in, because the landing-page adapter couldn't distinguish "this browser initiated the session" from "this browser just happens to be visiting the redirect URL". The proxy now stamps a short-lived, browser-scoped cookie at session-create time, and the adapter only auto-completes sign-in when that cookie matches the sessionId in the URL — same-device mobile flow unaffected, cross-device leaves the scanning device on the login page.
 * Fixed: multilingual sites using WPML / Polylang / Weglot no longer need a separate redirect-URL registered per language. The widget now emits its `redirect-uri` using WordPress's language-neutral admin URL (`site_url`) instead of the translated home URL, so `/en/wp-login.php`, `/fr/wp-login.php`, etc. all resolve to the same canonical registration in the QRAuth dashboard.
@@ -118,6 +121,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 * Full i18n scaffolding (POT + Greek translation source).
 
 == Upgrade Notice ==
+
+= 0.1.9 =
+Customers signing in through a WooCommerce form now land on My Account (or the checkout step they started on) instead of wp-admin. No configuration change required.
 
 = 0.1.8 =
 Fixes two UX issues on mobile / multilingual sites: (1) scanning a QR from another device no longer signs in the scanning phone, only the device that actually initiated the session; (2) the redirect URL is language-neutral so WPML / Polylang / Weglot sites only need one allowlist entry, not one per language.

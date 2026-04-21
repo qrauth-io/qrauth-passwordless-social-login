@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.9] — 2026-04-22
+
+### Changed
+
+- **Context-aware post-auth redirect.** `RestController::handle()` previously hard-coded the `redirect` field of its `/verify` response to `admin_url()`. That was fine for wp-login.php sign-ins but jarring on WooCommerce surfaces — a customer signing in at `/my-account/` or on the checkout page would be bounced to `/wp-admin/` (or, for non-admin users, whatever WP redirects subscribers away to). New `RestController::decide_redirect()` reads the request's `Referer` header and routes:
+  - wp-login.php (and its `?action=register` variant) → `admin_url()`.
+  - WooCommerce My Account (including sub-pages like `/edit-account/`, if configured) → `wc_get_page_permalink('myaccount')`.
+  - WooCommerce checkout → `wc_get_page_permalink('checkout')` so the returning customer resumes their purchase.
+  - Any other same-origin Referer (shortcode / Gutenberg / theme-managed page) → back to where they came from.
+  - No Referer, cross-origin Referer, unparseable Referer → `admin_url()` fallback.
+- All destinations are validated through WordPress core's `wp_validate_redirect()` before being returned, so a forged Referer header cannot turn this into an open redirect — off-origin URLs fall back to `admin_url()` regardless of what the browser sent. Referer is used purely to pick *which* same-origin page the user goes to; it's never trusted for authorisation.
+- 13 new unit tests in `tests/Unit/Rest/RedirectDecisionTest.php` cover every branch (wp-login, both WC surfaces, sub-path matching, shared-prefix anti-collision, query-string preservation, safe fallbacks for each failure mode).
+
+### Notes
+
+The test harness required a couple of scaffolding pieces: `tests/stubs/wp-rest-request.php` is a minimal `WP_REST_Request` stand-in so unit tests can build a request with a Referer header without loading WP. The "WooCommerce not loaded" branch (where `function_exists('wc_get_page_permalink')` returns false) is exercised by the integration suite — the WP test harness runs without WC active, so every existing integration test runs through that code path already.
+
 ## [0.1.8] — 2026-04-21
 
 ### Fixed
