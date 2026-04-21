@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.13] — 2026-04-22
+
+### Security
+
+- **Tenant URL sanitiser — `http://localhost` / `http://127.0.0.1` now gated on `WP_DEBUG`.** Pre-0.1.13 accepted `http://localhost:*` and `http://127.0.0.1:*` on any port unconditionally — legitimate for local dev (wp-env on `localhost:8888`) but a small admin-gated SSRF probe path in production: a user with `manage_options` could set Tenant URL to `http://localhost:3306` / `:6379` / `:9200` / etc., and the plugin's outbound `wp_remote_request` would open a connection to whichever internal service listens on that port. No response exfiltration (wrong protocol), but port-scanning and internal-DoS are in scope.
+- Fix: the sanitiser in `src/Settings/Settings.php` now routes the localhost allowance through a new `qrauth_psl_allow_localhost_tenant_url` filter whose default value is `defined('WP_DEBUG') && WP_DEBUG`. Sites running with `WP_DEBUG` on (standard dev convention) keep accepting localhost Tenant URLs as before. Production sites that genuinely need a non-HTTPS self-hosted tenant — the rare case — can opt back in with a one-liner:
+  ```php
+  add_filter( 'qrauth_psl_allow_localhost_tenant_url', '__return_true' );
+  ```
+- Two new unit tests in `tests/Unit/Settings/SanitizeTest.php`:
+  - `test_tenant_url_localhost_and_loopback_are_accepted_when_filter_on` (updated) — still covers the dev-mode happy path.
+  - `test_tenant_url_localhost_rejected_when_filter_off` (new) — regression guard for the production-mode rejection path, closing pentest finding LOW-1 (2026-04-22).
+
+### Notes
+
+Finding source: single-session pentest run on 2026-04-22 (WPScan + OWASP ZAP + manual curl probes on wp-env). Full report lives in `SPECS/pentest/REPORT.md` (gitignored). Of 14 probe categories run against the plugin's attack surface, this was the only finding rated above informational — the other 13 either passed cleanly or surfaced wp-env / WP-core / Apache hygiene notes outside plugin scope.
+
 ## [0.1.12] — 2026-04-22
 
 ### Changed

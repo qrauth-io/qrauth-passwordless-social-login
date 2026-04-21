@@ -4,7 +4,7 @@ Tags: login, passwordless, qr code, social login, authentication
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.2
-Stable tag: 0.1.12
+Stable tag: 0.1.13
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -75,6 +75,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 
 == Changelog ==
 
+= 0.1.13 =
+* Security (low-severity hardening): the Tenant URL sanitiser now rejects `http://localhost` and `http://127.0.0.1` values on production sites — they're only accepted when `WP_DEBUG` is on (local development) or when a site operator explicitly opts in via the new `qrauth_psl_allow_localhost_tenant_url` filter. Closes a pentest finding: an admin with `manage_options` could previously point Tenant URL at arbitrary localhost ports (e.g. MySQL, Redis), using the plugin's outbound `wp_remote_request` as a port-scanning oracle against the WP host's internal network. Now admin-gated SSRF via this path is blocked by default; `https://` tenants remain accepted unchanged.
+
 = 0.1.12 =
 * CI/release infrastructure: bumped all GitHub Actions flagged by the Node-20 deprecation warning (`actions/checkout`, `actions/setup-node`, `softprops/action-gh-release`, `actions/upload-artifact`, `ramsey/composer-install`) to current major versions so every runner step uses Node.js 24. No plugin behaviour changes — only the CI environment that builds + releases the plugin changed.
 
@@ -130,6 +133,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 * Full i18n scaffolding (POT + Greek translation source).
 
 == Upgrade Notice ==
+
+= 0.1.13 =
+Security hardening — Tenant URL sanitiser now rejects plain-http localhost values unless `WP_DEBUG` is on or the `qrauth_psl_allow_localhost_tenant_url` filter opts in. Blocks an admin-gated SSRF probe path. No action required for sites using `https://` tenants.
 
 = 0.1.12 =
 CI / release-infrastructure bump only — runners now use Node.js 24. Zero runtime behaviour changes.

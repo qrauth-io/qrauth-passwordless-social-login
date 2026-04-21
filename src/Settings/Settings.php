@@ -151,7 +151,7 @@ final class Settings {
 	 *                        never echoes the stored value back), otherwise
 	 *                        trim. Stored plaintext — same trust boundary
 	 *                        as every other WP-stored API credential.
-	 *  - `tenant_url`      : https:// or http://localhost|127.0.0.1 only; otherwise falls back to previous.
+	 *  - `tenant_url`      : https:// always; http://localhost or http://127.0.0.1 only when WP_DEBUG is on (filterable via `qrauth_psl_allow_localhost_tenant_url`). Falls back to previous on reject.
 	 *  - `auto_provision`  : cast to bool.
 	 *  - `default_role`    : allowlist [subscriber, contributor, author]; else → subscriber.
 	 *  - `allowed_scopes`  : array_intersect with [identity, email, organization]; identity is mandatory.
@@ -196,12 +196,36 @@ final class Settings {
 			: trim( $submitted_secret );
 
 		// tenant_url.
-		$url      = isset( $input['tenant_url'] ) ? trim( (string) $input['tenant_url'] ) : '';
-		$parsed   = '' !== $url ? wp_parse_url( $url ) : false;
-		$scheme   = is_array( $parsed ) && isset( $parsed['scheme'] ) ? (string) $parsed['scheme'] : '';
-		$host     = is_array( $parsed ) && isset( $parsed['host'] ) ? (string) $parsed['host'] : '';
-		$is_https = 'https' === $scheme;
-		$is_local = 'http' === $scheme && in_array( $host, array( 'localhost', '127.0.0.1' ), true );
+		//
+		// https:// is always accepted. Plain-http http://localhost and
+		// http://127.0.0.1 are accepted only when the site is running
+		// with WP_DEBUG on — this is the local-dev path (wp-env on
+		// localhost:8888 is the canonical case). Production sites
+		// should use https:// for their tenant regardless of host.
+		//
+		// The `qrauth_psl_allow_localhost_tenant_url` filter is an
+		// escape hatch for the rare production setup that genuinely
+		// needs a non-HTTPS self-hosted tenant (on-prem deployment
+		// behind a reverse proxy that terminates TLS, etc.): return
+		// true from the filter to re-enable localhost in production.
+		// LOW-severity pentest finding LOW-1 (2026-04-22) motivated
+		// gating this by default — without the guard, an admin with
+		// `manage_options` could redirect the proxy's outbound
+		// wp_remote_request to arbitrary internal-network ports
+		// (localhost:3306, :6379, …) for port-scanning or internal DoS.
+		$url    = isset( $input['tenant_url'] ) ? trim( (string) $input['tenant_url'] ) : '';
+		$parsed = '' !== $url ? wp_parse_url( $url ) : false;
+		$scheme = is_array( $parsed ) && isset( $parsed['scheme'] ) ? (string) $parsed['scheme'] : '';
+		$host   = is_array( $parsed ) && isset( $parsed['host'] ) ? (string) $parsed['host'] : '';
+
+		$is_https    = 'https' === $scheme;
+		$allow_local = (bool) apply_filters(
+			'qrauth_psl_allow_localhost_tenant_url',
+			defined( 'WP_DEBUG' ) && WP_DEBUG
+		);
+		$is_local    = $allow_local
+			&& 'http' === $scheme
+			&& in_array( $host, array( 'localhost', '127.0.0.1' ), true );
 
 		if ( $is_https || $is_local ) {
 			$clean['tenant_url'] = esc_url_raw( $url );
