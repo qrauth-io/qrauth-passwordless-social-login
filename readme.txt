@@ -4,7 +4,7 @@ Tags: login, passwordless, qr code, social login, authentication
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.2
-Stable tag: 0.1.6
+Stable tag: 0.1.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -76,6 +76,10 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 
 == Changelog ==
 
+= 0.1.7 =
+* Added: WooCommerce integration. When WooCommerce is active, Settings → QRAuth shows two new checkboxes — "WooCommerce My Account + checkout login" (covers /my-account/ and the checkout page's returning-customer sign-in) and "WooCommerce registration form". The widget appears inside WooCommerce's own forms via the standard `woocommerce_login_form_end` / `woocommerce_register_form_end` template hooks.
+* Settings checkboxes are hidden on non-WooCommerce sites — the plugin stays clean on simple blogs.
+
 = 0.1.6 =
 * Added: `[qrauth_login]` shortcode for placing the widget on any page, post, or widget area. Supports `display="inline|button"` (default `inline`) and `mode="login|register"` (default `login`). Opt in via Settings → QRAuth → "Show widget on" → "Anywhere via shortcode".
 * Widget asset loading now runs on front-end pages when the shortcode is used, not just on `wp-login.php`. The ~65 KB bundle is only emitted on pages that actually render the widget — unused shortcode-enabled sites pay zero bandwidth cost on pages without the tag.
@@ -111,6 +115,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 * Full i18n scaffolding (POT + Greek translation source).
 
 == Upgrade Notice ==
+
+= 0.1.7 =
+Adds WooCommerce support — the widget can now appear on the My Account login/register forms and on the checkout sign-in step. Opt in per-surface under Settings → QRAuth.
 
 = 0.1.6 =
 Adds a `[qrauth_login]` shortcode so the widget can live on any page, not just wp-login.php. Opt in from Settings → QRAuth. No existing configuration changes on upgrade.

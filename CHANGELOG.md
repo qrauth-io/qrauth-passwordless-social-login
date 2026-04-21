@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.7] — 2026-04-21
+
+### Added
+
+- **WooCommerce integration.** New `Frontend\WooCommerceLogin` class binds to `woocommerce_login_form_end` and `woocommerce_register_form_end` — the standard template hooks WC themes expect for third-party sign-in surfaces. The widget appears inside WC's own forms, not adjacent to them, so themes that customise the form wrapper retain full layout control. Gated on `class_exists('WooCommerce')` at render time so the plugin stays bootable on non-WC sites; also gated on the per-surface `enabled_on` entries (`woocommerce-account`, `woocommerce-register`).
+- **Settings UI** shows the two new WooCommerce checkboxes only when WC is actually active — avoids clutter for non-ecommerce sites. Both opt-in (off by default).
+
+### Notes
+
+WooCommerce's login template also renders on the checkout page when guest checkout is disabled, so hooking `woocommerce_login_form_end` once covers both My Account and checkout sign-in with a single binding. Reuses `Frontend\AssetEnqueue::enqueue_for_widget()` (introduced in 0.1.6) to activate the script handles on WC pages — zero bandwidth cost on non-WC pages.
+
 ## [0.1.6] — 2026-04-21
 
 ### Added

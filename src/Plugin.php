@@ -15,6 +15,7 @@ use QRAuth\PasswordlessSocialLogin\Frontend\AssetEnqueue;
 use QRAuth\PasswordlessSocialLogin\Frontend\LoginWidget;
 use QRAuth\PasswordlessSocialLogin\Frontend\ProfileFields;
 use QRAuth\PasswordlessSocialLogin\Frontend\Shortcode;
+use QRAuth\PasswordlessSocialLogin\Frontend\WooCommerceLogin;
 use QRAuth\PasswordlessSocialLogin\Rest\AuthSessionProxyController;
 use QRAuth\PasswordlessSocialLogin\Rest\RestController;
 use QRAuth\PasswordlessSocialLogin\Settings\Settings;
@@ -88,6 +89,13 @@ final class Plugin {
 	private ?Shortcode $shortcode = null;
 
 	/**
+	 * WooCommerce login/register form integration.
+	 *
+	 * @var WooCommerceLogin|null
+	 */
+	private ?WooCommerceLogin $woocommerce = null;
+
+	/**
 	 * Return the shared plugin instance.
 	 */
 	public static function instance(): self {
@@ -133,6 +141,9 @@ final class Plugin {
 
 		$this->shortcode = new Shortcode();
 		$this->shortcode->boot();
+
+		$this->woocommerce = new WooCommerceLogin();
+		$this->woocommerce->boot();
 	}
 
 	/**
