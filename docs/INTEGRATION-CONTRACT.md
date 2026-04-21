@@ -4,7 +4,15 @@ Reusable specification for integrating QRAuth passwordless + social login into a
 
 This plugin is the **reference implementation**. Every constraint, contract, and security control below is designed to generalize to the other CMS marketplaces without modification to QRAuth's REST surface.
 
-Version: 1.0 (2026-04-20). Pinned against `@qrauth/web-components@0.4.0` and QRAuth API `v1`.
+Version: 1.1 (2026-04-21). Pinned against `@qrauth/web-components@0.4.0` and QRAuth API `v1`.
+
+**v1.1 changes (all additive — v1.0 integrations remain conformant):**
+
+- Corrected example values for `sessionId` (cuid, no prefix) and `signature` (envelope format `<keyId>:<base64>`) in §3.2, §4.1, §4.2, §4.4 — the v1.0 examples misled integrators into pinning format-specific regexes that reject every real value.
+- New §4.5 *URL-param callback* documenting the `?qrauth_session_id=…&qrauth_signature=…` query string qrauth.io appends when redirecting a user back from the hosted approval page after mobile same-device approve. Required for phone sign-in to complete.
+- New §6.7 *Same-origin proxy pattern* for third-party-hosted CMSes — direct browser → qrauth.io calls cross a CORS boundary that every third-party-hosted WordPress / Shopify / Ghost install will hit. The proxy pattern used by this plugin is now documented as the recommended mitigation.
+- Clarified `redirectUrl` allowlist semantics in §4.1 (normalization ignores trailing slashes, query, fragment — register the base URL once).
+- Two additions to the §9 conformance checklist covering the URL-param callback and validator-regex guidance.
 
 ---
 
@@ -59,20 +67,27 @@ The embedded widget uses the OAuth 2.0 PKCE pattern. The CMS backend is never in
 2. Browser POST /api/v1/auth-sessions/
       Headers: X-Client-Id: <public clientId>
       Body:    { scopes: [...], redirectUrl?: string, codeChallenge, codeChallengeMethod: 'S256' }
-   -> 201 { sessionId, token, qrUrl, qrDataUrl, status: 'PENDING', scopes, expiresAt }
+   -> 201 { sessionId: 'clq9r8t0u0000abc123def456',    // cuid — opaque, no prefix
+           token: '01HX...',
+           qrUrl, qrDataUrl, status: 'PENDING', scopes, expiresAt }
 3. Browser renders QR for qrUrl OR opens /a/:token in a new tab on mobile.
 4. User scans with the QRAuth app OR completes social login on the approval page.
 5. Browser polls GET /api/v1/auth-sessions/:id?code_verifier=<verifier>
    (or subscribes to GET /api/v1/auth-sessions/:id/sse?code_verifier=<verifier>)
    -> while PENDING: { status: 'PENDING', user: null, signature: null }
-   -> on APPROVED:   { status: 'APPROVED', user: { id, name?, email? }, signature: '<base64 ECDSA-P256>' }
+   -> on APPROVED:   { status: 'APPROVED',
+                       user: { id, name?, email? },
+                       signature: '<keyId>:<base64sig>'   // envelope — see §4.2 and §4.4
+                     }
 6. <qrauth-login> emits qrauth:authenticated with { sessionId, user, signature }.
 7. CMS frontend forwards { sessionId, signature } to its own backend endpoint.
 8. CMS backend POST https://qrauth.io/api/v1/auth-sessions/verify-result
-      Body: { sessionId, signature }
+      Body: { sessionId, signature }          // signature carries the <keyId>: envelope verbatim
    -> 200 { valid: true, session: { id, status: 'APPROVED', appName, scopes, user, signature, resolvedAt } }
 9. CMS backend links/provisions the local user and creates a session cookie.
 ```
+
+On mobile same-device the user leaves the CMS tab to approve on qrauth.io, and the original tab is usually suspended before polling completes. To finish the flow, qrauth.io appends `qrauth_session_id` and `qrauth_signature` query params to the configured `redirect-uri` on return — the consumer picks them up on landing and runs step 7 onward. See §4.5.
 
 ### 3.3 PKCE parameters
 
@@ -131,22 +146,24 @@ Request body:
 ```
 
 - `scopes` (optional, default `["identity"]`) — must be subset of the App's `allowedScopes`.
-- `redirectUrl` (optional) — where the hosted approval page should send the user after tap-Approve on mobile. **Must match one of the App's registered `redirectUrls`** (same allowlist semantics as OAuth 2.0 redirect URIs).
+- `redirectUrl` (optional) — where the hosted approval page should send the user after tap-Approve on mobile. **Must match one of the App's registered `redirectUrls`**. The server-side comparison normalises the URL before matching: trailing slashes are ignored, and the query string + fragment are stripped before comparison. Register the canonical base URL once (e.g. `https://site.example.com/wp-login.php`) and any runtime variant with query params still matches.
 - `codeChallenge` (required for public clients) — base64url SHA-256 of the verifier.
 
 Response (201):
 
 ```json
 {
-  "sessionId": "cs_...",
-  "token": "01HX...",
-  "qrUrl": "https://qrauth.io/a/01HX...",
-  "qrDataUrl": "https://qrauth.io/a/01HX...",
+  "sessionId": "clq9r8t0u0000abc123def456",
+  "token": "01HXABC123DEF456GHI789JKL",
+  "qrUrl": "https://qrauth.io/a/01HXABC123DEF456GHI789JKL",
+  "qrDataUrl": "https://qrauth.io/a/01HXABC123DEF456GHI789JKL",
   "status": "PENDING",
   "scopes": ["identity", "email"],
   "expiresAt": "2026-04-20T12:05:00.000Z"
 }
 ```
+
+`sessionId` is a **cuid** — opaque, no `cs_` or other prefix. Treat it as a 24–32 character base64url-alphabet string. Input-validation regexes on the consumer side should use an opaque-ID allowlist (e.g. `^[A-Za-z0-9_-]{8,128}$`), not a UUID or prefix-specific pattern, to avoid breaking when the monolith switches ID formats (has happened; will happen again).
 
 Errors:
 
@@ -176,7 +193,7 @@ Response (200) — pending:
 
 ```json
 {
-  "sessionId": "cs_...",
+  "sessionId": "clq9r8t0u0000abc123def456",
   "status": "PENDING",
   "scopes": ["identity", "email"],
   "user": null,
@@ -191,16 +208,20 @@ Response (200) — approved, verifier passed:
 
 ```json
 {
-  "sessionId": "cs_...",
+  "sessionId": "clq9r8t0u0000abc123def456",
   "status": "APPROVED",
   "scopes": ["identity", "email"],
-  "user": { "id": "u_...", "name": "Ari", "email": "ari@example.com" },
-  "signature": "<base64 ECDSA-P256>",
+  "user": { "id": "cluser9r8t0u0000xyz789", "name": "Ari", "email": "ari@example.com" },
+  "signature": "cmkey3x4abc123xyz789:MEUCIQDabc+123/def456GHIjkl789MNOpqrstuvwxYZ01234567ABCdef==",
   "expiresAt": "...",
   "scannedAt": "2026-04-20T12:01:30.000Z",
   "resolvedAt": "2026-04-20T12:01:45.000Z"
 }
 ```
+
+**`signature` is an envelope**, not raw base64. Format: `<keyId>:<base64sig>`, where `<keyId>` identifies the signing key stored on the org (so `/verify-result` can look up the right public key) and `<base64sig>` is the DER-encoded ECDSA-P256 signature over the session's canonical form, encoded in standard base64 (alphabet `A-Za-z0-9+/=`, not base64url). The colon separator is load-bearing: strip or mangle it and `/verify-result` can't locate the key.
+
+Input-validation on the consumer side should use a union alphabet that accepts the colon, both base64 variants, and a reasonable minimum length — e.g. `^[A-Za-z0-9+/=_:.-]{24,}$`. A regex pinned to base64url alphabet only (`[A-Za-z0-9_-]`) or to raw base64 without the colon rejects every real signature.
 
 Errors:
 
@@ -234,10 +255,12 @@ Request body:
 
 ```json
 {
-  "sessionId": "cs_...",
-  "signature": "<base64 signature received from the widget>"
+  "sessionId": "clq9r8t0u0000abc123def456",
+  "signature": "cmkey3x4abc123xyz789:MEUCIQDabc+123/def456GHIjkl789MNOpqrstuvwxYZ01234567ABCdef=="
 }
 ```
+
+Both values flow through from the widget verbatim — the CMS backend must **not** modify, decode, or strip the `<keyId>:` prefix from `signature`. The server uses the prefix to look up the correct public key.
 
 Response (200):
 
@@ -245,12 +268,12 @@ Response (200):
 {
   "valid": true,
   "session": {
-    "id": "cs_...",
+    "id": "clq9r8t0u0000abc123def456",
     "status": "APPROVED",
     "appName": "Site Name",
     "scopes": ["identity", "email"],
-    "user": { "id": "u_...", "name": "Ari", "email": "ari@example.com" },
-    "signature": "<base64 ECDSA-P256>",
+    "user": { "id": "cluser9r8t0u0000xyz789", "name": "Ari", "email": "ari@example.com" },
+    "signature": "cmkey3x4abc123xyz789:MEUCIQDabc+123/def456GHIjkl789MNOpqrstuvwxYZ01234567ABCdef==",
     "resolvedAt": "2026-04-20T12:01:45.000Z"
   }
 }
@@ -268,6 +291,29 @@ Errors:
 
 **The CMS backend must treat `valid: false` as "reject this login". There is no ambiguity.**
 
+### 4.5 URL-param callback (mobile same-device flow)
+
+Required for phone sign-in. Desktop sign-in works without this surface because polling stays alive in the same tab; mobile same-device does not (the original tab is usually suspended while the user authenticates on the qrauth.io tab).
+
+**Mechanism.** If the widget was created with a `redirect-uri` attribute and the value matches the App's registered `redirectUrls` allowlist, the hosted approval page at `qrauth.io/a/:token` redirects the user back to that URL after Approve. qrauth.io appends two query params to the redirect:
+
+```
+https://site.example.com/wp-login.php?qrauth_session_id=clq9r8t0u0000abc123def456&qrauth_signature=cmkey3x4abc123xyz789%3AMEUCIQDabc%2B123%2Fdef456GHIjkl789MNOpqrstuvwxYZ01234567ABCdef%3D%3D
+```
+
+Note: the signature's `+`, `/`, `=`, and `:` are percent-encoded in the URL. Consumers that read via `URLSearchParams.get()` get the decoded value automatically; consumers that read `window.location.search` manually must decode first.
+
+**Consumer obligations.**
+
+1. On every page that could be a `redirect-uri` landing destination, check the URL for `qrauth_session_id` and `qrauth_signature` early in the bootstrap (before any auth guard redirect would otherwise fire).
+2. If both are present, run the standard verification path (POST to the CMS backend's verify endpoint with `{ sessionId, signature }`, which in turn calls `/verify-result` — see §4.4).
+3. **Scrub the params from the URL unconditionally** via `history.replaceState()` before or immediately after the POST, so a page refresh can't replay a consumed signature. The server rejects consumed signatures, but the URL bar shouldn't show auth material.
+4. Complete the sign-in (set the session cookie / issue the JWT / whatever the CMS's convention is), then redirect to the post-login destination.
+
+**Why this is non-optional for mobile.** `window.open(url, '_blank', 'noopener')` on mobile Safari, mobile Chrome, and most mobile browsers tends to replace the current tab rather than open a new one. The WP tab that was polling for APPROVED is then either suspended or discarded entirely. By the time the user returns from qrauth.io, there's no live listener to fire `qrauth:authenticated` — the URL-param path is the only reliable completion route.
+
+**Parameter names are fixed.** `qrauth_session_id` and `qrauth_signature`. Consumers must use these exact names; they are part of this contract and are not configurable per-app.
+
 ---
 
 ## 5. Web Component contract
@@ -283,7 +329,7 @@ The `<qrauth-login>` element ships in `@qrauth/web-components` and is vendored b
 | `theme` | `light` \| `dark` | no | `light` | |
 | `scopes` | space-separated | no | `identity` | Subset of the App's `allowedScopes` |
 | `redirect-url` | URL | no | — | Client-side redirect after widget fires `authenticated` |
-| `redirect-uri` | URL | no | — | Sent as `redirectUrl` in the session-create body; must match App's `redirectUrls`. Used by the mobile-CTA flow so the hosted approval page returns the user to the CMS tab. |
+| `redirect-uri` | URL | no | — | Sent as `redirectUrl` in the session-create body; must match App's `redirectUrls` allowlist (§4.1 notes the normalization semantics). Triggers the URL-param callback flow — consumer must handle `qrauth_session_id` + `qrauth_signature` on the landing page per §4.5. Required in practice for mobile same-device sign-in. |
 | `on-auth` | string | no | — | Name of a global `window[...]` callback invoked with the event payload |
 | `display` | `button` \| `inline` | no | `button` | `button` opens a modal; `inline` renders the QR directly |
 | `animated` | boolean attribute | no | absent | Enables subtle pulse animation on the QR |
@@ -327,6 +373,7 @@ Every CMS integration **must** implement all of the following. None are optional
 - Render `<qrauth-login tenant="<clientId>" ...>` on the appropriate authentication surface (login page, registration page, account linking page).
 - Enqueue the vendored `assets/js/qrauth-components.js` IIFE — **do not load from a CDN**. Vendoring is required for WP.org compliance and supply-chain integrity.
 - Bind a listener for `qrauth:authenticated`; forward `{ sessionId, signature }` to the CMS backend over the platform's own AJAX/REST transport. Include a CSRF nonce per the platform's conventions.
+- If `redirect-uri` is set on the widget, also handle the URL-param callback per §4.5: on every page that could be a landing destination, check the URL for `qrauth_session_id` + `qrauth_signature`, scrub them via `history.replaceState()`, and complete the verification via the same transport. Required for mobile same-device sign-in.
 
 ### 6.3 Backend verification
 
@@ -361,7 +408,38 @@ See §7 for full rules. At minimum:
 
 - Pin the vendored web-components bundle by exact version and SRI hash (sha512). Upgrade both together. The reference implementation does this in `package.json` under the `qrauth` key and verifies in `bin/fetch-web-components.mjs`.
 
-### 6.7 Uninstall / data hygiene
+### 6.7 Same-origin proxy for third-party-hosted CMSes
+
+The sequence in §3.2 assumes the browser can call `https://qrauth.io/api/v1/auth-sessions` directly. In production on a third-party-hosted CMS (arbitrary WordPress site, arbitrary Shopify storefront, arbitrary Ghost blog) this **fails by default**: the browser treats every consumer site as a cross-origin request against qrauth.io and either blocks the preflight (if CORS headers aren't permissive) or the response (if it carries credentials). Requiring every CMS admin to get their origin added to a global CORS allowlist on qrauth.io does not scale.
+
+The standard mitigation is a **same-origin proxy on the CMS backend**. The CMS plugin exposes three routes under its own REST namespace — all three are simple passthroughs, no business logic:
+
+```
+POST /<cms-namespace>/api/v1/auth-sessions
+  -> server-to-server POST https://qrauth.io/api/v1/auth-sessions
+     forward the browser JSON body verbatim, inject the App's
+     Basic auth + X-Client-Id server-side, strip Set-Cookie from
+     upstream, return upstream status + JSON verbatim.
+
+GET /<cms-namespace>/api/v1/auth-sessions/<id>
+  -> server-to-server GET https://qrauth.io/api/v1/auth-sessions/<id>?<query>
+     same injection + strip rules. The code_verifier query param
+     must flow through.
+
+GET /<cms-namespace>/a/<token>
+  -> 302 redirect to https://qrauth.io/a/<token>
+     hosted approval page must load on qrauth.io (WebAuthn RP-ID
+     constraint); a JSON proxy here would not work. Bare 302 keeps
+     the mobile same-device flow intact.
+```
+
+The widget's `base-url` attribute is then set to the CMS's own REST root (e.g. `https://site.example.com/wp-json/<cms-namespace>/api/v1`), so every browser call stays same-origin and CORS never fires. Consumer setup is unchanged — just the origin the browser talks to.
+
+The reference implementation (`src/Rest/AuthSessionProxyController.php`) covers all three routes and the header allowlist rules (forward only `Content-Type`; strip browser-sent `Cookie`, `Authorization`, `X-Client-Id` — the proxy injects its own from stored credentials). Integrations for other CMSes should mirror this structure.
+
+Storing the App's Client Secret server-side for the Basic-auth injection requires the consumer site to hold a secret, which is one boundary looser than the raw PKCE public-client model. Treat `client_secret` with the same operational trust level as any other CMS-stored API key (WordPress `wp_options`, Shopify metafield, Ghost secret).
+
+### 6.8 Uninstall / data hygiene
 
 - On plugin uninstall, delete all plugin-owned options / settings rows.
 - Do **not** delete user accounts created via QRAuth provisioning — leave them owned by the platform.
@@ -429,6 +507,8 @@ A plugin/extension conforms to this contract if and only if:
 - [ ] Passes `codeChallenge` + `codeChallengeMethod: 'S256'` on session create.
 - [ ] Passes `?code_verifier=` on polling/SSE when retrieving approved results.
 - [ ] Forwards `{ sessionId, signature }` from `qrauth:authenticated` to the CMS backend.
+- [ ] Handles the URL-param callback on the configured `redirect-uri` landing page: reads `qrauth_session_id` + `qrauth_signature` from the query string, scrubs via `history.replaceState()`, runs verification via the same path as the event handler. Required for mobile same-device sign-in (§4.5).
+- [ ] Validates incoming `sessionId` / `signature` with opaque-alphabet allowlists, not UUID- or base64url-specific regexes. Suggested patterns: `sessionId ^[A-Za-z0-9_-]{8,128}$`; `signature ^[A-Za-z0-9+/=_:.-]{24,}$`. Semantic validation is upstream at `/verify-result` — the consumer regex is a "not-obviously-malformed" gate only.
 - [ ] Calls `/api/v1/auth-sessions/verify-result` from the backend and rejects on `valid: false` or `status !== 'APPROVED'`.
 - [ ] Uses `user.email` (when scope granted) as the linking key, matched case-insensitively.
 - [ ] Stores a `user.id` ↔ local-user mapping on first successful link.
