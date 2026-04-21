@@ -119,7 +119,14 @@ final class Plugin {
 		register_activation_hook( QRAUTH_PSL_FILE, array( $this, 'on_activate' ) );
 		register_deactivation_hook( QRAUTH_PSL_FILE, array( $this, 'on_deactivate' ) );
 
-		add_action( 'plugins_loaded', array( $this, 'load_textdomain' ) );
+		// Note: no explicit `load_plugin_textdomain()` call. Since WP 4.6,
+		// plugins hosted on wordpress.org have their translations loaded
+		// automatically by core (the plugin-check action flags a manual
+		// call as discouraged). Our minimum is WP 6.4 so this is always
+		// true. If the plugin is ever distributed outside wordpress.org
+		// and needs i18n, re-introduce the call on a post-4.6-guarded
+		// branch (`load_plugin_textdomain` function-exists check isn't
+		// sufficient — it's always defined; gate on something else).
 
 		$this->settings = new Settings();
 		$this->settings->boot();
@@ -164,17 +171,6 @@ final class Plugin {
 	 */
 	public function on_deactivate(): void {
 		// Intentional no-op.
-	}
-
-	/**
-	 * Load the plugin text domain for translations.
-	 */
-	public function load_textdomain(): void {
-		load_plugin_textdomain(
-			'qrauth-passwordless-social-login',
-			false,
-			dirname( plugin_basename( QRAUTH_PSL_FILE ) ) . '/languages'
-		);
 	}
 
 	/**

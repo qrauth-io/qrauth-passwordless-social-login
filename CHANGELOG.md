@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.11] — 2026-04-22
+
+### Fixed
+
+Three warnings surfaced by `wp plugin-check` against v0.1.8 during WP.org submission prep. None were blocking reviews, but cleaner to fix before the directory-review round:
+
+- **`missing_composer_json_file`** — the release workflow was excluding `composer.json` from the tarball, leaving `vendor/` without its manifest. plugin-check flags this as "vendored dependencies with no declared provenance". `composer.json` is now included in the release ZIP; `composer.lock` stays out (it's an environment-specific pinning file, not semantic metadata). Change is in `.github/workflows/release.yml`.
+- **`load_plugin_textdomainFound` (discouraged since WP 4.6)** — WordPress.org auto-loads a plugin's translations from `/languages/` starting with WP 4.6, and the plugin-check action warns on explicit `load_plugin_textdomain()` calls because they're redundant and confuse reviewers about which locale path is canonical. Removed the call + the `load_textdomain()` method from `Plugin.php` and the `plugins_loaded` hook that wired them up. The plugin's `Requires at least:` header is `6.4`, so there's no compatibility concern. A comment left in `Plugin::boot()` explains why the call is absent, in case a future contributor sees the gap and assumes it was an oversight.
+- **`upgrade_notice_limit`** — the 0.1.8 entry in the `== Upgrade Notice ==` block exceeded WP.org's 300-character cap (rendered truncated in the update-available banner). Trimmed to 200 chars while keeping the two substantive points (cross-device sign-in fix + multilingual redirect URL). A scan of the remaining 10 upgrade notices confirms they're all under 250 chars.
+
+### Notes
+
+Runtime behaviour unchanged. If the plugin is ever distributed outside wordpress.org (private mirror, GitHub-only install) and Greek / other translations are in play, revisit the `load_plugin_textdomain` call — WP core won't auto-load translations for plugins it doesn't know about.
+
 ## [0.1.10] — 2026-04-22
 
 ### Changed

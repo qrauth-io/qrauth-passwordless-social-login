@@ -68,7 +68,6 @@ jobs:
             --exclude=".phpcs.cache" \
             --exclude=".wp-env.json" \
             --exclude="CLAUDE.md" \
-            --exclude="composer.json" \
             --exclude="composer.lock" \
             --exclude="package.json" \
             --exclude="package-lock.json" \
