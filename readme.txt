@@ -70,12 +70,8 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 
 1. wp-login.php with the "Sign in with QRAuth" button under the password field.
 2. Widget active — animated QR, session countdown, and "Continue on this device" CTA for mobile users.
-3. wp-login.php registration form with the inline QR widget.
-4. Settings → QRAuth — Client ID, Client Secret, Tenant URL, auto-provision toggle, default role, allowed scopes, and per-surface enable switches.
-5. User profile — linked state with the remote user ID, link timestamp, and "Unlink QRAuth" button.
-6. WooCommerce My Account — widget inside WC's login form. The same template renders on the checkout page when guest checkout is disabled, so this placement covers both.
-7. WooCommerce registration form — inline widget alongside WC's account-creation fields.
-8. `[qrauth_login]` shortcode embedded on a theme-managed custom page.
+3. Settings → QRAuth — Client ID, Client Secret, Tenant URL, auto-provision toggle, default role, allowed scopes, and per-surface enable switches.
+4. WooCommerce registration form — inline widget alongside WC's account-creation fields.
 
 == Changelog ==
 
