@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] — 2026-04-21
+
+### Added
+
+- **Same-origin REST proxy.** New `AuthSessionProxyController` registers three routes under `qrauth-psl/v1`: `POST /api/v1/auth-sessions`, `GET /api/v1/auth-sessions/<id>`, and `GET /a/<token>`. The first two forward server-to-server to `{tenant_url}/api/v1/auth-sessions[/<id>]` with `wp_remote_request` (TLS, 10 s timeout, HTTP Basic auth injected from stored credentials) and return upstream status plus JSON body verbatim. The third 302s to the tenant origin so the mobile same-device approval page still lands on `qrauth.io` (WebAuthn RP-ID constraint).
+- **Client Secret setting.** Password-input field under Settings → QRAuth with blank-preserve behaviour (submitting empty keeps the stored value; only a non-empty submission overwrites). Stored plaintext in `wp_options` — same trust boundary as any other WP-stored API credential. An admin notice flags the missing secret after upgrade.
+
+### Changed
+
+- **Widget `base-url` now points at the WordPress REST API** (`rest_url('qrauth-psl/v1')`), not `qrauth.io`. Eliminates browser CORS preflights on third-party WP installs.
+- **Options schema:** `base_url` → `tenant_url`, new `client_secret`, computed `api_base_url`. Activation hook runs an idempotent migration — pre-0.1.1 installs are upgraded automatically on reactivation (no manual intervention needed).
+- **Settings UI copy:** Tenant URL description rewritten for non-technical admins. The debug-only effective-REST-URL line is gated on `WP_DEBUG`.
+
+### Removed
+
+- Widget `redirect-uri` attribute. The value was exact-matched by qrauth.io against the app's registered redirect-URL allowlist (no prefix, no wildcard), and the plugin ignored any returned redirect anyway — `wp_set_auth_cookie` always lands the user on `admin_url()`.
+
 ## [0.1.0] — 2026-04-21
 
 Initial public release. WordPress.org plugin directory submission.
