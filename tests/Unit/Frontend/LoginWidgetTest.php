@@ -44,6 +44,11 @@ final class LoginWidgetTest extends TestCase {
 				return 'https://example.test' . $path;
 			}
 		);
+		Functions\when( 'rest_url' )->alias(
+			static function ( $path = '' ) {
+				return 'https://example.test/wp-json/' . ltrim( (string) $path, '/' );
+			}
+		);
 	}
 
 	/**
@@ -62,7 +67,8 @@ final class LoginWidgetTest extends TestCase {
 	private function stub_options( array $overrides = array() ): void {
 		$defaults = array(
 			'client_id'      => 'test-client-id',
-			'base_url'       => 'https://qrauth.io',
+			'client_secret'  => 'test-client-secret',
+			'tenant_url'     => 'https://qrauth.io',
 			'auto_provision' => false,
 			'default_role'   => 'subscriber',
 			'allowed_scopes' => array( 'identity', 'email' ),
@@ -123,9 +129,9 @@ final class LoginWidgetTest extends TestCase {
 		$this->assertStringContainsString( 'display="button"', $html );
 		$this->assertStringContainsString( 'mode="login"', $html );
 		$this->assertStringContainsString( 'tenant="test-client-id"', $html );
-		$this->assertStringContainsString( 'base-url="https://qrauth.io"', $html );
+		$this->assertStringContainsString( 'base-url="https://example.test/wp-json/qrauth-psl/v1"', $html );
 		$this->assertStringContainsString( 'scope="identity email"', $html );
-		$this->assertStringContainsString( 'redirect-uri="https://example.test/wp-login.php"', $html );
+		$this->assertStringNotContainsString( 'redirect-uri=', $html );
 	}
 
 	/**

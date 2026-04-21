@@ -74,6 +74,11 @@ final class UserLinkerTest extends TestCase {
 				return $v instanceof \WP_Error;
 			}
 		);
+		Functions\when( 'rest_url' )->alias(
+			static function ( $path = '' ) {
+				return 'https://example.test/wp-json/' . ltrim( (string) $path, '/' );
+			}
+		);
 	}
 
 	/**
@@ -92,7 +97,8 @@ final class UserLinkerTest extends TestCase {
 	private function stub_options( array $overrides = array() ): void {
 		$defaults = array(
 			'client_id'      => 'cid',
-			'base_url'       => 'https://qrauth.io',
+			'client_secret'  => 'csec',
+			'tenant_url'     => 'https://qrauth.io',
 			'auto_provision' => false,
 			'default_role'   => 'subscriber',
 			'allowed_scopes' => array( 'identity', 'email' ),

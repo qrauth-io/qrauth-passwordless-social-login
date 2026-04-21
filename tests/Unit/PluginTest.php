@@ -27,8 +27,12 @@ final class PluginTest extends TestCase {
 
 		$this->assertIsArray( $defaults );
 		$this->assertArrayHasKey( 'client_id', $defaults );
-		$this->assertArrayHasKey( 'base_url', $defaults );
-		$this->assertSame( 'https://qrauth.io', $defaults['base_url'] );
+		$this->assertArrayHasKey( 'client_secret', $defaults );
+		$this->assertSame( '', $defaults['client_secret'] );
+		$this->assertArrayHasKey( 'tenant_url', $defaults );
+		$this->assertSame( 'https://qrauth.io', $defaults['tenant_url'] );
+		$this->assertArrayNotHasKey( 'base_url', $defaults );
+		$this->assertArrayNotHasKey( 'api_base_url', $defaults );
 		$this->assertSame( 'subscriber', $defaults['default_role'] );
 		$this->assertFalse( $defaults['auto_provision'] );
 		$this->assertSame( array( 'identity', 'email' ), $defaults['allowed_scopes'] );

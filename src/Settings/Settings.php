@@ -78,9 +78,15 @@ final class Settings {
 	}
 
 	/**
-	 * Render an admin notice when the plugin has no client_id configured.
+	 * Render an admin notice when the plugin is missing required credentials.
 	 *
-	 * Suppressed on the settings page itself (there's an inline callout there).
+	 * Two distinct conditions produce a notice:
+	 *  - `client_id` is empty → "not yet configured".
+	 *  - `client_id` is set but `client_secret` is empty → the proxy can't
+	 *    reach qrauth.io (it can't forge Basic auth without the secret).
+	 *
+	 * Both are suppressed on the plugin's own settings page, where an
+	 * inline callout already carries the message.
 	 */
 	public function maybe_notice(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
@@ -92,16 +98,28 @@ final class Settings {
 			return;
 		}
 
-		if ( '' !== Options::get( 'client_id' ) ) {
+		$client_id     = (string) Options::get( 'client_id' );
+		$client_secret = (string) Options::get( 'client_secret' );
+		$settings_url  = admin_url( 'options-general.php?page=' . self::PAGE_SLUG );
+
+		if ( '' === $client_id ) {
+			printf(
+				'<div class="notice notice-warning"><p>%1$s <a href="%2$s">%3$s</a></p></div>',
+				esc_html__( 'QRAuth is not yet configured.', 'qrauth-passwordless-social-login' ),
+				esc_url( $settings_url ),
+				esc_html__( 'Set your Client ID in Settings → QRAuth.', 'qrauth-passwordless-social-login' )
+			);
 			return;
 		}
 
-		printf(
-			'<div class="notice notice-warning"><p>%1$s <a href="%2$s">%3$s</a></p></div>',
-			esc_html__( 'QRAuth is not yet configured.', 'qrauth-passwordless-social-login' ),
-			esc_url( admin_url( 'options-general.php?page=' . self::PAGE_SLUG ) ),
-			esc_html__( 'Set your Client ID in Settings → QRAuth.', 'qrauth-passwordless-social-login' )
-		);
+		if ( '' === $client_secret ) {
+			printf(
+				'<div class="notice notice-warning"><p>%1$s <a href="%2$s">%3$s</a></p></div>',
+				esc_html__( 'QRAuth plugin requires a Client Secret.', 'qrauth-passwordless-social-login' ),
+				esc_url( $settings_url ),
+				esc_html__( 'Configure it in Settings → QRAuth.', 'qrauth-passwordless-social-login' )
+			);
+		}
 	}
 
 	/**
@@ -129,7 +147,11 @@ final class Settings {
 	 *
 	 * Rules, in order:
 	 *  - `client_id`       : sanitize_text_field + trim. Empty permitted.
-	 *  - `base_url`        : https:// or http://localhost|127.0.0.1 only; otherwise falls back to previous.
+	 *  - `client_secret`   : preserve previous if submitted empty (the UI
+	 *                        never echoes the stored value back), otherwise
+	 *                        trim. Stored plaintext — same trust boundary
+	 *                        as every other WP-stored API credential.
+	 *  - `tenant_url`      : https:// or http://localhost|127.0.0.1 only; otherwise falls back to previous.
 	 *  - `auto_provision`  : cast to bool.
 	 *  - `default_role`    : allowlist [subscriber, contributor, author]; else → subscriber.
 	 *  - `allowed_scopes`  : array_intersect with [identity, email, organization]; identity is mandatory.
@@ -149,6 +171,13 @@ final class Settings {
 		if ( ! is_array( $previous ) ) {
 			$previous = $defaults;
 		}
+		// Bridge any pre-0.2 install where `base_url` is still the stored
+		// key — treat it as the previous `tenant_url` so the "fall back to
+		// previous" branch below doesn't regress to the default origin on
+		// the first save after upgrade.
+		if ( ! isset( $previous['tenant_url'] ) && isset( $previous['base_url'] ) ) {
+			$previous['tenant_url'] = (string) $previous['base_url'];
+		}
 		$previous = array_merge( $defaults, $previous );
 
 		$clean = $defaults;
@@ -158,8 +187,16 @@ final class Settings {
 			? trim( sanitize_text_field( (string) $input['client_id'] ) )
 			: (string) $previous['client_id'];
 
-		// base_url.
-		$url      = isset( $input['base_url'] ) ? trim( (string) $input['base_url'] ) : '';
+		// client_secret — blank means "keep existing" because the UI never
+		// emits the stored value into the form. Only a non-empty submission
+		// overwrites.
+		$submitted_secret       = isset( $input['client_secret'] ) ? (string) $input['client_secret'] : '';
+		$clean['client_secret'] = '' === trim( $submitted_secret )
+			? (string) $previous['client_secret']
+			: trim( $submitted_secret );
+
+		// tenant_url.
+		$url      = isset( $input['tenant_url'] ) ? trim( (string) $input['tenant_url'] ) : '';
 		$parsed   = '' !== $url ? wp_parse_url( $url ) : false;
 		$scheme   = is_array( $parsed ) && isset( $parsed['scheme'] ) ? (string) $parsed['scheme'] : '';
 		$host     = is_array( $parsed ) && isset( $parsed['host'] ) ? (string) $parsed['host'] : '';
@@ -167,9 +204,9 @@ final class Settings {
 		$is_local = 'http' === $scheme && in_array( $host, array( 'localhost', '127.0.0.1' ), true );
 
 		if ( $is_https || $is_local ) {
-			$clean['base_url'] = esc_url_raw( $url );
+			$clean['tenant_url'] = esc_url_raw( $url );
 		} else {
-			$clean['base_url'] = (string) $previous['base_url'];
+			$clean['tenant_url'] = (string) $previous['tenant_url'];
 		}
 
 		// auto_provision.
