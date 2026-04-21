@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5] — 2026-04-21
+
+### Added
+
+- **Mobile same-device sign-in via URL-param callback.** `<qrauth-login>` now emits `redirect-uri` pointing at `home_url('/wp-login.php')`. After a user approves on their phone, qrauth.io's hosted approval page 302s back with `?qrauth_session_id=<cuid>&qrauth_signature=<envelope>` appended. The adapter (`assets/js/qrauth-adapter.js`) picks those params up on page load, scrubs them from the URL via `history.replaceState` (so a refresh can't replay a consumed signature), and POSTs to `/verify` the same way the `qrauth:authenticated` event path does. This is critical for mobile because the original tab is usually suspended while the user is on the qrauth.io tab — the polling loop never fires `qrauth:authenticated`, so the event path alone leaves the user stranded. Matches the pattern documented in `vqr/packages/docs/guide/web-components.md` §"URL-param callback" and already deployed in the comtel-sirens integration.
+- **Settings → QRAuth:** new info callout surfaces the exact URL admins need to register in their QRAuth app's redirect-URL allowlist (typically `https://<site>/wp-login.php`). Required one-time dashboard setup for mobile sign-in.
+- **readme.txt installation step 4:** instructions to register the login URL before trying phone sign-in.
+
+### Notes
+
+`redirect-uri` was briefly dropped in 0.1.1 (the CORS-proxy release) because qrauth.io exact-matches it against the app's allowlist and a URL not registered in the dashboard breaks every POST. 0.1.5 re-adds it with the administrator guidance to register the URL in their QRAuth app — the approach comtel-sirens has been using in production. The server-side allowlist comparison normalises trailing slashes and ignores query string + fragment, so registering `https://<site>/wp-login.php` is sufficient regardless of which query params WordPress may later append to that URL.
+
 ## [0.1.4] — 2026-04-21
 
 ### Fixed

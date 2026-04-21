@@ -33,6 +33,7 @@ final class SettingsView {
 
 		$options       = Options::all();
 		$get_client_id = 'https://qrauth.io/dashboard/apps/create';
+		$login_url     = home_url( '/wp-login.php' );
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'QRAuth — Passwordless & Social Login', 'qrauth-passwordless-social-login' ); ?></h1>
@@ -51,6 +52,25 @@ final class SettingsView {
 					<?php esc_html_e( 'Get your Client ID', 'qrauth-passwordless-social-login' ); ?>
 				</a>
 			</p>
+
+			<div class="notice notice-info inline">
+				<p>
+					<strong><?php esc_html_e( 'Enable sign-in on phones', 'qrauth-passwordless-social-login' ); ?></strong>
+				</p>
+				<p>
+					<?php
+					printf(
+						/* translators: 1: the login URL admins should register, 2: the path in the QRAuth dashboard where redirect URLs are managed. */
+						esc_html__( 'Add this URL to your QRAuth app\'s redirect allowlist so visitors who approve on their phone are sent back here: %1$s. Set it in the dashboard under %2$s.', 'qrauth-passwordless-social-login' ),
+						'<code>' . esc_html( $login_url ) . '</code>',
+						'<strong>' . esc_html__( 'Apps → your app → Redirect URLs', 'qrauth-passwordless-social-login' ) . '</strong>'
+					);
+					?>
+				</p>
+				<p class="description">
+					<?php esc_html_e( 'Desktop sign-in works without this. Only phones (same-device approval) need the redirect URL to be registered.', 'qrauth-passwordless-social-login' ); ?>
+				</p>
+			</div>
 
 			<form method="post" action="options.php">
 				<?php settings_fields( Settings::OPTION_GROUP ); ?>
