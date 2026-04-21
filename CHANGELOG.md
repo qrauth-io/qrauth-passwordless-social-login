@@ -1,0 +1,33 @@
+# Changelog
+
+All notable changes to this project are documented here. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
+adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.1.0] — 2026-04-21
+
+Initial public release. WordPress.org plugin directory submission.
+
+### Added
+
+- **Login widget.** `<qrauth-login>` rendered on `wp-login.php` (button mode) and `wp-login.php?action=register` (inline mode), gated on the configured Client ID and the `enabled_on` setting. Vendored IIFE from `@qrauth/web-components@0.4.0`, SHA-512-verified at build time.
+- **Settings page.** Single row under `Settings → QRAuth` — Client ID, base URL, auto-provision toggle, default role, allowed scopes, injection points. Strict sanitizer: role clamped to `subscriber|contributor|author`, base URL must be `https://` (or `http://localhost|127.0.0.1` for dev), scopes intersected with `[identity, email, organization]` with `identity` mandatory.
+- **Verification REST route.** `POST /wp-json/qrauth-psl/v1/verify`. Nonce via `X-WP-Nonce`; per-IP rate limit (10 / 5 min, IP hashed with `wp_salt()`); server-to-server call to `https://qrauth.io/api/v1/auth-sessions/verify-result` via `wp_remote_post` with TLS + 10 s timeout. Redirect is always `admin_url()` — QRAuth's `redirect` field is ignored (open-redirect risk zero).
+- **User linking.** Three-step resolver: match by `qrauth_psl_user_id` meta, else by email, else provision (if enabled) with a 32-character random password and the configured default role. Role clamped defensively at linker level.
+- **Profile unlink flow.** QRAuth section on `profile.php` / `user-edit.php` — linked state shows the remote user ID + link timestamp + nonce-gated "Unlink QRAuth" button. Per-user nonce (`qrauth_psl_unlink_<user_id>`) prevents cross-user CSRF. Editors cannot unlink other users (capability gate: `edit_user`).
+- **Uninstaller.** Removes the single plugin option + sweeps `qrauth_psl_*` transients. Never touches `wp_users` or `wp_usermeta` — accounts and their link metadata survive uninstall, enabling frictionless reinstall.
+- **i18n.** POT + Greek (`el_GR`) PO/MO files. All user-facing strings routed through `__()` / `_e()` / `_x()` with text domain `qrauth-passwordless-social-login`.
+
+### Security
+
+- Role ceiling enforced both in the settings sanitizer and at `UserLinker` dispatch time.
+- Rate-limit key hashed with `wp_salt()` so a database dump cannot recover caller IPs.
+- REST error responses report only machine codes (`nonce_failed`, `rate_limited`, `verify_failed`, `signature_invalid`, `session_not_approved`, `provision_disabled`, `internal_error`). Upstream error text is never leaked.
+- Supply-chain integrity for the vendored IIFE: `bin/fetch-web-components.mjs` verifies the npm tarball against a pinned SHA-512 before extraction.
+- No outbound analytics or telemetry.
+
+### Compatibility
+
+- PHP 8.2+ floor. Tested on PHP 8.2 and 8.3.
+- WordPress 6.4+ floor. Tested against WP 6.4, 6.5, 6.6, 6.7, and the current release.
+- No jQuery dependency. Adapter is an ES2020 IIFE under 2.5 KB.
