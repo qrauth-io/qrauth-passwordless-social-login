@@ -143,11 +143,16 @@ final class VerifyRouteTest extends WP_UnitTestCase {
 
 	/**
 	 * Malformed sessionId → 400 from WP's validator before our handler runs.
+	 *
+	 * The sessionId validator now accepts any `[A-Za-z0-9_-]{8,128}` opaque
+	 * ID (cuid, UUID, nanoid, …) so the garbage input has to fail the
+	 * alphabet check, not just "doesn't look like a UUID". A string with a
+	 * space in it does the job: real session IDs are always single tokens.
 	 */
 	public function test_invalid_body_returns_400(): void {
 		$this->authenticate();
 
-		$response = $this->dispatch_verify( 'not-a-uuid', self::VALID_SIG );
+		$response = $this->dispatch_verify( 'not a uuid', self::VALID_SIG );
 
 		$this->assertSame( 400, $response->get_status() );
 	}
