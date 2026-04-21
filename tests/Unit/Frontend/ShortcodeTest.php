@@ -41,6 +41,11 @@ final class ShortcodeTest extends TestCase {
 				return 'https://example.test' . $path;
 			}
 		);
+		Functions\when( 'site_url' )->alias(
+			static function ( $path = '' ) {
+				return 'https://example.test' . $path;
+			}
+		);
 		Functions\when( 'rest_url' )->alias(
 			static function ( $path = '' ) {
 				return 'https://example.test/wp-json/' . ltrim( (string) $path, '/' );

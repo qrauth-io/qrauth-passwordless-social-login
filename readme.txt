@@ -4,7 +4,7 @@ Tags: login, passwordless, qr code, social login, authentication
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.2
-Stable tag: 0.1.7
+Stable tag: 0.1.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -25,7 +25,7 @@ QRAuth replaces the password field on your WordPress login page with a drop-in Q
 1. Upload the plugin or install via WP-Admin → Plugins → Add New.
 2. Activate through the 'Plugins' menu in WordPress.
 3. Go to Settings → QRAuth and paste your Client ID and Client Secret from https://qrauth.io/dashboard/apps/create. The Client Secret is used server-side only — it never reaches the browser.
-4. In the QRAuth dashboard (**Apps → your app → Redirect URLs**), register your site's login URL — typically `https://<your-site>/wp-login.php`. Without this registration, sign-in on phones (same-device approval) cannot complete; desktop sign-in works without it. The exact URL to register is shown on the Settings → QRAuth page.
+4. In the QRAuth dashboard (**Apps → your app → Redirect URLs**), register your site's login URL — typically `https://<your-site>/wp-login.php`. Without this registration, sign-in on phones (same-device approval) cannot complete; desktop sign-in works without it. The exact URL to register is shown on the Settings → QRAuth page. One registration is enough even on multilingual sites (WPML, Polylang, Weglot): the plugin uses the language-neutral admin URL, not the translated home URL, so `/en/wp-login.php` / `/fr/wp-login.php` / etc. don't need separate entries.
 5. Log out and try signing in via the "Sign in with QRAuth" button on wp-login.php.
 
 == Frequently Asked Questions ==
@@ -79,6 +79,10 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 
 == Changelog ==
 
+= 0.1.8 =
+* Fixed: cross-device QR scan no longer inadvertently signs in the scanning device. Previously, a phone that scanned a desktop-initiated QR and approved on qrauth.io would get redirected back to wp-login.php and auto-sign-in, because the landing-page adapter couldn't distinguish "this browser initiated the session" from "this browser just happens to be visiting the redirect URL". The proxy now stamps a short-lived, browser-scoped cookie at session-create time, and the adapter only auto-completes sign-in when that cookie matches the sessionId in the URL — same-device mobile flow unaffected, cross-device leaves the scanning device on the login page.
+* Fixed: multilingual sites using WPML / Polylang / Weglot no longer need a separate redirect-URL registered per language. The widget now emits its `redirect-uri` using WordPress's language-neutral admin URL (`site_url`) instead of the translated home URL, so `/en/wp-login.php`, `/fr/wp-login.php`, etc. all resolve to the same canonical registration in the QRAuth dashboard.
+
 = 0.1.7 =
 * Added: WooCommerce integration. When WooCommerce is active, Settings → QRAuth shows two new checkboxes — "WooCommerce My Account + checkout login" (covers /my-account/ and the checkout page's returning-customer sign-in) and "WooCommerce registration form". The widget appears inside WooCommerce's own forms via the standard `woocommerce_login_form_end` / `woocommerce_register_form_end` template hooks.
 * Settings checkboxes are hidden on non-WooCommerce sites — the plugin stays clean on simple blogs.
@@ -118,6 +122,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 * Full i18n scaffolding (POT + Greek translation source).
 
 == Upgrade Notice ==
+
+= 0.1.8 =
+Fixes two UX issues on mobile / multilingual sites: (1) scanning a QR from another device no longer signs in the scanning phone, only the device that actually initiated the session; (2) the redirect URL is language-neutral so WPML / Polylang / Weglot sites only need one allowlist entry, not one per language.
 
 = 0.1.7 =
 Adds WooCommerce support — the widget can now appear on the My Account login/register forms and on the checkout sign-in step. Opt in per-surface under Settings → QRAuth.

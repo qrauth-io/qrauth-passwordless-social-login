@@ -54,6 +54,13 @@ final class AuthSessionProxyTest extends WP_UnitTestCase {
 	private ?array $captured = null;
 
 	/**
+	 * Cookies recorded via the `qrauth_psl_initiator_cookie` action hook.
+	 *
+	 * @var array<string,array{value:string,expires:int}>
+	 */
+	private array $captured_cookies = array();
+
+	/**
 	 * Install a fresh REST server, seed credentials, and register the
 	 * `pre_http_request` + `wp_redirect` filters that the tests rely on
 	 * to observe the controller's behaviour.
@@ -100,8 +107,11 @@ final class AuthSessionProxyTest extends WP_UnitTestCase {
 			),
 		);
 
+		$this->captured_cookies = array();
+
 		add_filter( 'pre_http_request', array( $this, 'capture_upstream' ), 10, 3 );
 		add_filter( 'wp_redirect', array( $this, 'capture_redirect' ), 10, 2 );
+		add_action( 'qrauth_psl_initiator_cookie', array( $this, 'capture_cookie' ), 10, 2 );
 	}
 
 	/**
@@ -111,6 +121,7 @@ final class AuthSessionProxyTest extends WP_UnitTestCase {
 	public function tear_down(): void {
 		remove_filter( 'pre_http_request', array( $this, 'capture_upstream' ), 10 );
 		remove_filter( 'wp_redirect', array( $this, 'capture_redirect' ), 10 );
+		remove_action( 'qrauth_psl_initiator_cookie', array( $this, 'capture_cookie' ), 10 );
 
 		global $wp_rest_server;
 		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- WP's own REST server global; reset between tests.
@@ -148,6 +159,25 @@ final class AuthSessionProxyTest extends WP_UnitTestCase {
 	public function capture_redirect( string $location, int $status ): never {
 		// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- test helper; the thrown values are caught by the test, never rendered to users.
 		throw new WpRedirectCapturedException( $location, $status );
+	}
+
+	/**
+	 * Action callback — records the sessionId + expiry the controller
+	 * was about to stamp into `qrauth_psl_initiator`.
+	 *
+	 * Tests assert against `$this->captured_cookies` rather than trying
+	 * to read a real `Set-Cookie` header because the PHPUnit SAPI has
+	 * usually already sent headers by the time the controller runs, so
+	 * `setcookie` is suppressed in-process.
+	 *
+	 * @param string $session_id Session ID being stamped.
+	 * @param int    $expires    Unix timestamp the cookie expires at.
+	 */
+	public function capture_cookie( string $session_id, int $expires ): void {
+		$this->captured_cookies['qrauth_psl_initiator'] = array(
+			'value'   => $session_id,
+			'expires' => $expires,
+		);
 	}
 
 	// ------------------------------------------------------------------
@@ -280,6 +310,47 @@ final class AuthSessionProxyTest extends WP_UnitTestCase {
 
 		$this->assertSame( 502, $response->get_status() );
 		$this->assertSame( 'upstream_unavailable', $response->get_data()['error'] );
+	}
+
+	/**
+	 * On a successful upstream response, the proxy stamps a
+	 * short-lived cookie with the new sessionId so the landing-page
+	 * adapter can later distinguish same-device flow (cookie matches)
+	 * from cross-device (no cookie, scrub URL params without auto-auth).
+	 */
+	public function test_create_sets_initiator_cookie_on_success(): void {
+		$this->upstream_response = array(
+			'response' => array( 'code' => 201 ),
+			'headers'  => array( 'content-type' => 'application/json' ),
+			'body'     => wp_json_encode(
+				array(
+					'sessionId' => 'clq9r8t0u0000abc123def456',
+					'status'    => 'PENDING',
+				)
+			),
+		);
+
+		$this->dispatch_post( '{}' );
+
+		$this->assertArrayHasKey( 'qrauth_psl_initiator', $this->captured_cookies );
+		$this->assertSame( 'clq9r8t0u0000abc123def456', $this->captured_cookies['qrauth_psl_initiator']['value'] );
+	}
+
+	/**
+	 * Non-2xx upstream responses must NOT set the cookie. Marking
+	 * "this browser initiated a session" on a failed create would gate
+	 * future auto-auth in the wrong direction.
+	 */
+	public function test_create_does_not_set_cookie_on_upstream_error(): void {
+		$this->upstream_response = array(
+			'response' => array( 'code' => 401 ),
+			'headers'  => array( 'content-type' => 'application/json' ),
+			'body'     => wp_json_encode( array( 'error' => 'Unauthorized' ) ),
+		);
+
+		$this->dispatch_post( '{}' );
+
+		$this->assertArrayNotHasKey( 'qrauth_psl_initiator', $this->captured_cookies );
 	}
 
 	/**

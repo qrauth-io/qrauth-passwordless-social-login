@@ -30,6 +30,33 @@
 	var PARAM_SESSION_ID = 'qrauth_session_id';
 	var PARAM_SIGNATURE = 'qrauth_signature';
 
+	// Cookie the PHP-side proxy stamps after a successful session-create
+	// response. See AuthSessionProxyController::INITIATOR_COOKIE.
+	// Present + matching → URL-param auto-complete runs (same-device flow).
+	// Absent or mismatched → params are scrubbed without auto-completing,
+	// so a cross-device QR scan doesn't accidentally sign in the phone
+	// that just approved a desktop-initiated session.
+	var INITIATOR_COOKIE = 'qrauth_psl_initiator';
+
+	function readCookie(name) {
+		var target = name + '=';
+		var parts = (document.cookie || '').split(';');
+		for (var i = 0; i < parts.length; i++) {
+			var c = parts[i].replace(/^\s+/, '');
+			if (c.indexOf(target) === 0) {
+				return c.substring(target.length);
+			}
+		}
+		return '';
+	}
+
+	function clearInitiatorCookie() {
+		document.cookie =
+			INITIATOR_COOKIE +
+			'=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; samesite=lax' +
+			(window.location.protocol === 'https:' ? '; secure' : '');
+	}
+
 	function showError(widget, message) {
 		var host = (widget && widget.parentElement) || document.body;
 		var prev = host.querySelector('[data-qrauth-psl-error]');
@@ -101,9 +128,18 @@
 	// qrauth.io tab, so the event path never fires. Picking the params up
 	// here makes the flow independent of any still-alive polling.
 	//
-	// The URL is scrubbed via history.replaceState BEFORE the POST so a
+	// The URL is scrubbed via history.replaceState BEFORE any POST so a
 	// page refresh can't replay a consumed signature (the server would
 	// reject it anyway, but the URL bar should look clean immediately).
+	//
+	// The initiator cookie gates whether we auto-complete sign-in: the
+	// cookie is only set on browsers that called POST /auth-sessions for
+	// this sessionId, so its presence distinguishes the same-device flow
+	// (browser A initiated AND browser A approves + redirects) from the
+	// cross-device QR scan (browser A initiated, browser B approves and
+	// ends up here via the redirect-uri). In the cross-device case the
+	// browser B user didn't ask to sign in to this site — signing them in
+	// behind their back is the UX smell we're avoiding.
 	function pickUpUrlParams() {
 		if (typeof URL !== 'function' || typeof window.history === 'undefined') {
 			return;
@@ -119,6 +155,18 @@
 		url.searchParams.delete(PARAM_SESSION_ID);
 		url.searchParams.delete(PARAM_SIGNATURE);
 		window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+
+		var initiatorSessionId = readCookie(INITIATOR_COOKIE);
+		if (initiatorSessionId !== sessionId) {
+			// Cross-device (or cookie expired / session changed). Don't
+			// auto-authenticate this browser. The URL is already scrubbed
+			// so a refresh is clean.
+			return;
+		}
+
+		// Same device that initiated the session. Consume the cookie and
+		// complete sign-in via the standard event-path verify() call.
+		clearInitiatorCookie();
 
 		// If a widget rendered on this page, use it for error display and
 		// qrauth:error dispatch. Otherwise verify() falls back to document.body.

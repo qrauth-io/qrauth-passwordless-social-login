@@ -4,6 +4,27 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.8] — 2026-04-21
+
+### Fixed
+
+- **Cross-device QR scan no longer authenticates the scanning device.** Background: the URL-param callback added in 0.1.5 is essential for mobile **same-device** sign-in (phone initiates, phone approves, phone comes back via redirect). But with no gating, the same mechanism inadvertently authenticated the scanning phone in the **cross-device** case: desktop renders QR → phone scans via camera → phone Safari loads qrauth.io/a/:token → user approves → phone Safari redirects back to `wp-login.php?qrauth_session_id=…&qrauth_signature=…` → the phone's adapter picked up the params and signed the phone in too. UX was unsettling; the user only wanted to sign in on the desktop.
+- The fix: `AuthSessionProxyController::handle_create` now stamps a short-lived browser-scoped cookie (`qrauth_psl_initiator`, 5-minute TTL, `Path=/`, `Secure`, `SameSite=Lax`, NOT HttpOnly — the adapter reads it from JS) carrying the sessionId returned by the upstream response. `qrauth-adapter.js` gates its URL-param auto-complete on this cookie: present + matching → complete sign-in (same-device flow); absent or mismatched → scrub the URL params but stop there (cross-device flow).
+- Multi-device result matrix:
+
+  | Flow | Device that gets signed in | Why |
+  |---|---|---|
+  | Desktop QR + phone-app scan (no browser redirect) | Desktop | Desktop polling → `qrauth:authenticated` event |
+  | Desktop QR + phone-browser scan + approve | Desktop | Desktop polling completes first; phone's adapter sees mismatched cookie and scrubs |
+  | Mobile same-device (phone taps "Continue", phone approves) | Phone | Phone's cookie matches the sessionId it just initiated |
+
+- **Multilingual sites (WPML, Polylang, Weglot) no longer require one redirect-URL registration per language.** Previously the widget emitted `redirect-uri="{home_url('/wp-login.php')}"`, and multilingual plugins rewrite `home_url()` with a language prefix — `/en/wp-login.php`, `/fr/wp-login.php`, etc. — which fails the QRAuth app's redirectUrls allowlist (exact-match after normalising trailing slash + query + fragment; path prefix is not normalised). Switched to `site_url('/wp-login.php')`, which multilingual plugins leave as the canonical admin-infrastructure URL. Admins register one URL for all languages.
+- `SettingsView` callout and `readme.txt` installation step 4 updated to explain the multilingual behaviour explicitly so admins don't try to register per-language variants.
+
+### Notes
+
+After cross-device scan-with-phone, the scanning phone sees `wp-login.php` without auth material in the URL bar (the adapter already scrubbed) and on an unauthenticated session — the user closes the tab and returns to whatever they were doing. The desktop, which initiated the session and owns the cookie, signs in normally via its polling loop.
+
 ## [0.1.7] — 2026-04-21
 
 ### Added

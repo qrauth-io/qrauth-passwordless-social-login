@@ -73,6 +73,24 @@ final class AuthSessionProxyController {
 	private const UPSTREAM_TIMEOUT = 10;
 
 	/**
+	 * Cookie set by `handle_create` after a successful upstream response,
+	 * carrying the newly-minted sessionId. The landing-page adapter reads
+	 * it (from JS) to decide whether URL-param auto-complete should run:
+	 * present + matching → yes (the browser initiated this session);
+	 * absent or mismatched → no (cross-device QR-scan scenario, the
+	 * browser is someone approving a session that belongs to a different
+	 * device).
+	 */
+	public const INITIATOR_COOKIE = 'qrauth_psl_initiator';
+
+	/**
+	 * Initiator-cookie lifetime in seconds. Matches the upstream
+	 * auth-session TTL (5 minutes) so expired cookies auto-clean without
+	 * a separate sweep.
+	 */
+	private const INITIATOR_COOKIE_TTL = 300;
+
+	/**
 	 * Register WordPress hooks.
 	 */
 	public function boot(): void {
@@ -146,7 +164,81 @@ final class AuthSessionProxyController {
 			$request->get_body()
 		);
 
+		self::maybe_set_initiator_cookie( $upstream );
+
 		return $upstream;
+	}
+
+	/**
+	 * After a successful session-create response, stamp a short-lived
+	 * cookie recording the sessionId on the initiating browser. The
+	 * landing-page adapter gates URL-param auto-complete on this cookie
+	 * so a cross-device QR scan (user on phone approves a desktop-
+	 * initiated session) doesn't inadvertently sign the phone in too.
+	 *
+	 * Readable from JS (no `HttpOnly`) and scoped to `Path=/` so the
+	 * adapter on `/wp-login.php` can read a cookie set from
+	 * `/wp-json/…`. Short lifetime (5 minutes) matches the upstream
+	 * auth-session TTL — expired cookies auto-clean.
+	 *
+	 * No-op on non-success status codes; we only mark "this browser
+	 * asked qrauth.io to start a session", not "this browser made any
+	 * old call to the proxy".
+	 *
+	 * @param \WP_REST_Response $upstream Proxy response about to be returned.
+	 */
+	private static function maybe_set_initiator_cookie( \WP_REST_Response $upstream ): void {
+		$status = $upstream->get_status();
+		if ( $status < 200 || $status >= 300 ) {
+			return;
+		}
+
+		$data = $upstream->get_data();
+		if ( ! is_array( $data ) ) {
+			return;
+		}
+
+		$session_id = isset( $data['sessionId'] ) && is_string( $data['sessionId'] )
+			? $data['sessionId']
+			: '';
+		if ( '' === $session_id ) {
+			return;
+		}
+
+		$expires = time() + self::INITIATOR_COOKIE_TTL;
+
+		/**
+		 * Fires just before the initiator cookie is stamped.
+		 *
+		 * Integration tests hook this to observe the sessionId + expiry
+		 * without needing to parse a real `Set-Cookie` header (which
+		 * isn't reliably available under the PHPUnit SAPI).
+		 *
+		 * @param string $session_id Session ID being stamped.
+		 * @param int    $expires    Unix timestamp the cookie expires at.
+		 */
+		do_action( 'qrauth_psl_initiator_cookie', $session_id, $expires );
+
+		// Suppress the `setcookie` call when headers have already been
+		// sent — under PHPUnit this is typically the case (test runner
+		// output has already flushed), and `setcookie` would emit a
+		// PHP notice. The action hook above has already captured what
+		// tests need; production web requests still get the real cookie.
+		if ( headers_sent() ) {
+			return;
+		}
+
+		setcookie(
+			self::INITIATOR_COOKIE,
+			$session_id,
+			array(
+				'expires'  => $expires,
+				'path'     => '/',
+				'secure'   => is_ssl(),
+				'httponly' => false,
+				'samesite' => 'Lax',
+			)
+		);
 	}
 
 	/**
