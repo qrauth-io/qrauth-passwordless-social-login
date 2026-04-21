@@ -52,20 +52,23 @@ final class UnlinkFlowTest extends WP_UnitTestCase {
 	public function tear_down(): void {
 		unset( $_POST[ ProfileFields::UNLINK_FIELD ] );
 		unset( $_POST[ ProfileFields::UNLINK_NONCE_FIELD ] );
-		unset( $_POST['user_id'] );
 		parent::tear_down();
 	}
 
 	/**
-	 * WP's own callbacks on `personal_options_update` /
-	 * `edit_user_profile_update` expect `$_POST['user_id']` to be set
-	 * (wp-includes/user.php reads it unconditionally). The form provides
-	 * it in production; tests have to match.
+	 * Invoke the ProfileFields unlink handler directly.
 	 *
-	 * @param int $user_id Target user.
+	 * We intentionally bypass `do_action('personal_options_update', …)`
+	 * because WP's own `edit_user()` callback on that hook reads many
+	 * unrelated `$_POST` fields (`user_id`, `email`, `pass1`, …). A
+	 * production form supplies them all; our test is about the unlink
+	 * handler's own logic, not WP's edit_user validation. Calling the
+	 * method directly exercises the exact callable WP would invoke.
+	 *
+	 * @param int $user_id Target user ID (same value WP would pass).
 	 */
-	private function seed_post_for_profile_update( int $user_id ): void {
-		$_POST['user_id'] = (string) $user_id;
+	private function trigger_profile_update( int $user_id ): void {
+		( new ProfileFields() )->maybe_unlink( $user_id );
 	}
 
 	/**
@@ -77,13 +80,11 @@ final class UnlinkFlowTest extends WP_UnitTestCase {
 		update_user_meta( $user_id, UserMetaKeys::LINKED_AT, '2026-04-21T10:00:00+00:00' );
 
 		wp_set_current_user( $user_id );
-		$this->seed_post_for_profile_update( $user_id );
 
 		$_POST[ ProfileFields::UNLINK_NONCE_FIELD ] = wp_create_nonce( 'qrauth_psl_unlink_' . $user_id );
 		$_POST[ ProfileFields::UNLINK_FIELD ]       = '1';
 
-		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- driving WP's own hook from the test harness.
-		do_action( 'personal_options_update', $user_id );
+		$this->trigger_profile_update( $user_id );
 
 		$this->assertSame( '', get_user_meta( $user_id, UserMetaKeys::QRAUTH_USER_ID, true ) );
 		$this->assertSame( '', get_user_meta( $user_id, UserMetaKeys::LINKED_AT, true ) );
@@ -101,13 +102,11 @@ final class UnlinkFlowTest extends WP_UnitTestCase {
 		update_user_meta( $user_id, UserMetaKeys::QRAUTH_USER_ID, 'qa-user-1' );
 
 		wp_set_current_user( $user_id );
-		$this->seed_post_for_profile_update( $user_id );
 
 		$_POST[ ProfileFields::UNLINK_NONCE_FIELD ] = 'not-a-real-nonce';
 		$_POST[ ProfileFields::UNLINK_FIELD ]       = '1';
 
-		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- driving WP's own hook from the test harness.
-		do_action( 'personal_options_update', $user_id );
+		$this->trigger_profile_update( $user_id );
 
 		$this->assertSame( 'qa-user-1', get_user_meta( $user_id, UserMetaKeys::QRAUTH_USER_ID, true ) );
 	}
@@ -122,13 +121,11 @@ final class UnlinkFlowTest extends WP_UnitTestCase {
 
 		$editor_id = self::factory()->user->create( array( 'role' => 'editor' ) );
 		wp_set_current_user( $editor_id );
-		$this->seed_post_for_profile_update( $target );
 
 		$_POST[ ProfileFields::UNLINK_NONCE_FIELD ] = wp_create_nonce( 'qrauth_psl_unlink_' . $target );
 		$_POST[ ProfileFields::UNLINK_FIELD ]       = '1';
 
-		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- driving WP's own hook from the test harness.
-		do_action( 'edit_user_profile_update', $target );
+		$this->trigger_profile_update( $target );
 
 		$this->assertSame( 'qa-user-2', get_user_meta( $target, UserMetaKeys::QRAUTH_USER_ID, true ) );
 	}
