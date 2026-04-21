@@ -4,7 +4,7 @@ Tags: login, passwordless, qr code, social login, authentication
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.2
-Stable tag: 0.1.3
+Stable tag: 0.1.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -75,6 +75,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 
 == Changelog ==
 
+= 0.1.4 =
+* Fixed: logins completed past `/verify` on 0.1.3 but bounced with `provision_disabled` — regardless of whether auto-provisioning was on. The widget's scope attribute was emitted as `scope` (singular) while the QRAuth web component reads `scopes` (plural), so only the default `identity` scope was requested and `/verify-result` returned no email. Email-based account matching and new-user provisioning both rely on having the email, so both paths failed with the same error code. Restored the correct attribute name — no action required on upgrade.
+
 = 0.1.3 =
 * Fixed: `/verify` still rejected real logins on 0.1.2 with `rest_invalid_param` because the signature value QRAuth returns is an envelope (`<keyId>:<base64sig>`), and the validator's alphabet didn't include the `:` separator. Added `:` and `.` to the accepted character set. No action required on upgrade.
 
@@ -99,6 +102,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 * Full i18n scaffolding (POT + Greek translation source).
 
 == Upgrade Notice ==
+
+= 0.1.4 =
+Required hotfix. 0.1.3 accepted QRAuth signatures but rejected every login with `provision_disabled` because the widget was requesting only the `identity` scope (the scope attribute name was wrong). Upgrade to restore end-to-end sign-in.
 
 = 0.1.3 =
 Required hotfix. 0.1.2 still failed to accept real QRAuth signatures because the envelope separator `:` wasn't in the allowed alphabet. Upgrade to restore end-to-end sign-in.

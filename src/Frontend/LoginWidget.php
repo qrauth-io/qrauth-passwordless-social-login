@@ -102,7 +102,7 @@ final class LoginWidget {
 				base-url="<?php echo esc_attr( $options['api_base_url'] ); ?>"
 				display="<?php echo esc_attr( $display ); ?>"
 				mode="<?php echo esc_attr( $mode ); ?>"
-				scope="<?php echo esc_attr( implode( ' ', $options['allowed_scopes'] ) ); ?>"
+				scopes="<?php echo esc_attr( implode( ' ', $options['allowed_scopes'] ) ); ?>"
 			></qrauth-login>
 		</div>
 		<?php
