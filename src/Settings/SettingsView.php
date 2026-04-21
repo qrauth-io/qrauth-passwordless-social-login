@@ -311,6 +311,32 @@ final class SettingsView {
 									);
 									?>
 								</p>
+
+								<?php if ( class_exists( 'WooCommerce' ) ) : ?>
+									<br />
+									<label>
+										<input
+											type="checkbox"
+											name="qrauth_psl_settings[enabled_on][]"
+											value="woocommerce-account"
+											<?php checked( in_array( 'woocommerce-account', $options['enabled_on'], true ), true ); ?>
+										/>
+										<?php esc_html_e( 'WooCommerce My Account + checkout login', 'qrauth-passwordless-social-login' ); ?>
+									</label>
+									<br />
+									<label>
+										<input
+											type="checkbox"
+											name="qrauth_psl_settings[enabled_on][]"
+											value="woocommerce-register"
+											<?php checked( in_array( 'woocommerce-register', $options['enabled_on'], true ), true ); ?>
+										/>
+										<?php esc_html_e( 'WooCommerce registration form', 'qrauth-passwordless-social-login' ); ?>
+									</label>
+									<p class="description">
+										<?php esc_html_e( 'Widget appears inside WooCommerce\'s own login and register forms on /my-account/ (and on the checkout page when guest checkout is disabled).', 'qrauth-passwordless-social-login' ); ?>
+									</p>
+								<?php endif; ?>
 							</fieldset>
 						</td>
 					</tr>

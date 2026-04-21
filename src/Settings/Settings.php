@@ -228,7 +228,7 @@ final class Settings {
 
 		// enabled_on.
 		$enabled             = isset( $input['enabled_on'] ) && is_array( $input['enabled_on'] ) ? $input['enabled_on'] : array();
-		$allowed_points      = array( 'wp-login', 'register', 'profile', 'shortcode' );
+		$allowed_points      = array( 'wp-login', 'register', 'profile', 'shortcode', 'woocommerce-account', 'woocommerce-register' );
 		$clean['enabled_on'] = array_values( array_intersect( $enabled, $allowed_points ) );
 
 		return $clean;
