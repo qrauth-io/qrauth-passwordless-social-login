@@ -97,7 +97,7 @@ final class SanitizeTest extends TestCase {
 				'client_secret'  => 'shh-very-secret',
 				'tenant_url'     => 'https://qrauth.io',
 				'auto_provision' => '1',
-				'default_role'   => 'author',
+				'default_role'   => 'subscriber',
 				'allowed_scopes' => array( 'identity', 'email', 'organization' ),
 				'enabled_on'     => array( 'wp-login', 'register', 'profile' ),
 			)
@@ -107,7 +107,7 @@ final class SanitizeTest extends TestCase {
 		$this->assertSame( 'shh-very-secret', $clean['client_secret'] );
 		$this->assertSame( 'https://qrauth.io', $clean['tenant_url'] );
 		$this->assertTrue( $clean['auto_provision'] );
-		$this->assertSame( 'author', $clean['default_role'] );
+		$this->assertSame( 'subscriber', $clean['default_role'] );
 		$this->assertSame( array( 'identity', 'email', 'organization' ), $clean['allowed_scopes'] );
 		$this->assertSame( array( 'wp-login', 'register', 'profile' ), $clean['enabled_on'] );
 	}
@@ -254,6 +254,20 @@ final class SanitizeTest extends TestCase {
 	 */
 	public function test_default_role_editor_is_clamped(): void {
 		$clean = Settings::sanitize( array( 'default_role' => 'editor' ) );
+		$this->assertSame( 'subscriber', $clean['default_role'] );
+	}
+
+	/**
+	 * As of 0.1.16 the sanitiser allowlist is just `['subscriber']` —
+	 * `contributor` and `author`, formerly accepted, now fall back to
+	 * `subscriber`. Higher roles are reachable only via the
+	 * `qrauth_psl_provisioning_role` filter at provision time.
+	 */
+	public function test_default_role_contributor_and_author_fall_back_to_subscriber(): void {
+		$clean = Settings::sanitize( array( 'default_role' => 'contributor' ) );
+		$this->assertSame( 'subscriber', $clean['default_role'] );
+
+		$clean = Settings::sanitize( array( 'default_role' => 'author' ) );
 		$this->assertSame( 'subscriber', $clean['default_role'] );
 	}
 

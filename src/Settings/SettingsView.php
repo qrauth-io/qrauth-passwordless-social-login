@@ -199,18 +199,18 @@ final class SettingsView {
 						</th>
 						<td>
 							<select id="qrauth_psl_default_role" name="qrauth_psl_settings[default_role]">
-								<option value="subscriber" <?php selected( $options['default_role'], 'subscriber' ); ?>>
+								<option value="subscriber" selected>
 									<?php esc_html_e( 'Subscriber', 'qrauth-passwordless-social-login' ); ?>
-								</option>
-								<option value="contributor" <?php selected( $options['default_role'], 'contributor' ); ?>>
-									<?php esc_html_e( 'Contributor', 'qrauth-passwordless-social-login' ); ?>
-								</option>
-								<option value="author" <?php selected( $options['default_role'], 'author' ); ?>>
-									<?php esc_html_e( 'Author', 'qrauth-passwordless-social-login' ); ?>
 								</option>
 							</select>
 							<p class="description">
-								<?php esc_html_e( 'Applied only when Auto-provision is on. Editor and Administrator are deliberately unavailable.', 'qrauth-passwordless-social-login' ); ?>
+								<?php
+								printf(
+									/* translators: %s is a code-styled filter name. */
+									esc_html__( 'Auto-provisioned accounts are created as Subscriber. Operators who explicitly need a higher role can use the %s filter — see the plugin readme.', 'qrauth-passwordless-social-login' ),
+									'<code>qrauth_psl_provisioning_role</code>'
+								);
+								?>
 							</p>
 						</td>
 					</tr>

@@ -4,7 +4,7 @@ Tags: login, passwordless, qr code, social login, authentication
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.2
-Stable tag: 0.1.15
+Stable tag: 0.1.16
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -16,9 +16,32 @@ QRAuth replaces the password field on your WordPress login page with a drop-in Q
 
 **One Client ID is the only configuration.** Paste it into Settings → QRAuth and the widget appears on wp-login.php. Everything else — the approval flow, the signing, the token refresh — lives in the QRAuth platform.
 
-**Account safety is the default.** Auto-provisioning is off out of the box: only WordPress users who already exist (matched on email) can sign in via QRAuth. Flip on auto-provisioning and new users get the default role you pick (never above author — editor and administrator are deliberately unavailable). The plugin never stores the signing material, never issues a redirect outside your site, and never touches your user table on uninstall.
+**Account safety is the default.** Auto-provisioning is off out of the box: only WordPress users who already exist (matched on email) can sign in via QRAuth. Flip on auto-provisioning and new users are created as Subscriber — that's the only role the settings UI offers, intentionally. Operators who need to grant a different role programmatically can do so via the `qrauth_psl_provisioning_role` filter, capped at Author (Editor and Administrator are never auto-provisioned). The plugin never stores the signing material, never issues a redirect outside your site, and never touches your user table on uninstall.
 
 **Self-hosted, no third-party scripts on wp-login.php.** The QRAuth web component ships vendored inside the plugin — the only outbound call is from your server to QRAuth's verification endpoint during a sign-in attempt.
+
+== External services ==
+
+This plugin connects to QRAuth (https://qrauth.io) — the identity verification service that performs the actual passwordless / social sign-in. QRAuth is operated by ProgressNet, the publisher of this plugin. Without QRAuth there is no widget and no sign-in.
+
+**What the service is and what it is used for**
+
+QRAuth verifies that the user who scanned the QR code (or completed a social-provider flow on the hosted approval page) is the same person who initiated the sign-in on your WordPress site, then returns a signed assertion that the plugin uses to set the WordPress auth cookie.
+
+**What data is sent and when**
+
+* **Auth-session creation** — when a visitor opens a page that hosts the widget (wp-login.php, the registration form, a shortcode-enabled page, or a WooCommerce sign-in form), the plugin's same-origin REST proxy sends your Client ID, Client Secret (server-side only — never exposed to the browser), and the host page URL to `https://qrauth.io/api/v1/auth-sessions`. No visitor data is included in this request.
+* **Sign-in verification** — when the visitor approves the sign-in (by scanning with the QRAuth mobile app or completing a social-provider flow on QRAuth's hosted approval page), the plugin's REST proxy fetches the verified result from `https://qrauth.io/api/v1/auth-sessions/verify-result`. The response carries the QRAuth user identifier and, when the `email` scope is allowed in Settings → QRAuth, the user's email address. The plugin uses this only to locate or create the matching WordPress user; nothing beyond a hashed link reference is retained.
+* **Hosted approval page** — when a visitor on a phone taps "Continue with QRAuth", the browser navigates to `https://qrauth.io/a/<token>` to complete the social-provider flow. This is a standard cross-domain navigation initiated by the visitor.
+
+The vendored web component (`assets/js/qrauth-components.js`) is served from your own WordPress site — there is no third-party JavaScript on wp-login.php, and the component does not contact qrauth.io directly from the browser; all server-to-server calls are proxied via your site's REST API.
+
+**Service terms and policies**
+
+* Terms of Service: https://qrauth.io/terms
+* Privacy Policy: https://qrauth.io/privacy
+* Data Processing Addendum: https://qrauth.io/dpa
+* List of Sub-processors: https://qrauth.io/subprocessors
 
 == Installation ==
 
@@ -44,7 +67,7 @@ Yes. If a scanned account's email matches an existing WordPress user, they log i
 
 = What role do new users get? =
 
-Whatever you pick in Settings → QRAuth, from subscriber / contributor / author. Editor and administrator are not available as auto-provision roles by design.
+Subscriber. As of 0.1.16 the settings UI only offers Subscriber for auto-provisioned accounts — this aligns with WordPress.org plugin guidelines for sign-in plugins that create users post-external-verification. Operators who explicitly need to grant Contributor or Author can do so programmatically via the `qrauth_psl_provisioning_role` filter; the maximum allowed even via filter is Author. Editor and Administrator are never auto-provisioned by this plugin under any configuration.
 
 = Can I unlink a WordPress account from QRAuth? =
 
@@ -74,6 +97,11 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 4. WooCommerce registration form — inline widget alongside WC's account-creation fields.
 
 == Changelog ==
+= 0.1.16 =
+* Security: bumped vendored QRAuth web component to 0.4.1, which renders QR codes locally instead of fetching them from a third-party image service (api.qrserver.com). No more outbound calls leave the visitor's browser to hosts other than your own site. Identified during WordPress.org plugin review.
+* Privacy: the readme now carries an explicit `== External services ==` section documenting every outbound call the plugin makes, with links to the QRAuth Terms, Privacy Policy, DPA, and Sub-processors list.
+* Account safety: the auto-provisioning UI now offers only "Subscriber" — Contributor and Author have moved behind the new `qrauth_psl_provisioning_role` filter, accessible only via code. Editor and Administrator remain hard-blocked at every layer, as before. Existing sites configured with Contributor or Author will fall back to Subscriber on the next save; until then their stored value is unchanged.
+
 = 0.1.15 =
 * Author URI: https://github.com/aristech
 
@@ -138,6 +166,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 * Full i18n scaffolding (POT + Greek translation source).
 
 == Upgrade Notice ==
+
+= 0.1.16 =
+WordPress.org review fixes. Vendored web component bumped to 0.4.1 (no more api.qrserver.com fetch). External services section added to readme. Auto-provision role UI is now Subscriber-only — sites that need Contributor/Author must use the new `qrauth_psl_provisioning_role` filter.
 
 = 0.1.14 =
 Cosmetic readme fix — `Contributors:` now points at the actual wordpress.org profile. No runtime changes.
