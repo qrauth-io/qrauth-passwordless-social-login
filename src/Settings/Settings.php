@@ -153,7 +153,7 @@ final class Settings {
 	 *                        as every other WP-stored API credential.
 	 *  - `tenant_url`      : https:// always; http://localhost or http://127.0.0.1 only when WP_DEBUG is on (filterable via `qrauth_psl_allow_localhost_tenant_url`). Falls back to previous on reject.
 	 *  - `auto_provision`  : cast to bool.
-	 *  - `default_role`    : allowlist [subscriber, contributor, author]; else → subscriber.
+	 *  - `default_role`    : forced to 'subscriber'. Higher roles can only be granted programmatically via the `qrauth_psl_provisioning_role` filter — they are not exposed in the settings UI as of 0.1.16 (WP.org plugin guideline alignment).
 	 *  - `allowed_scopes`  : array_intersect with [identity, email, organization]; identity is mandatory.
 	 *  - `enabled_on`      : array_intersect with [wp-login, register, profile].
 	 *  - Unknown top-level keys are dropped (we start from defaults).
@@ -238,7 +238,7 @@ final class Settings {
 
 		// default_role.
 		$role                  = isset( $input['default_role'] ) ? (string) $input['default_role'] : '';
-		$allowed_roles         = array( 'subscriber', 'contributor', 'author' );
+		$allowed_roles         = array( 'subscriber' );
 		$clean['default_role'] = in_array( $role, $allowed_roles, true ) ? $role : 'subscriber';
 
 		// allowed_scopes — identity is mandatory.
