@@ -4,7 +4,7 @@ Tags: login, passwordless, qr code, social login, authentication
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.2
-Stable tag: 0.1.16
+Stable tag: 0.1.17
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -97,6 +97,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 4. WooCommerce registration form — inline widget alongside WC's account-creation fields.
 
 == Changelog ==
+= 0.1.17 =
+* Fixed: same-device mobile sign-in's "Continue with QRAuth" URL no longer drops its query string when proxying to the QRAuth tenant. Without this, the signal that distinguishes same-device clicks from cross-device QR scans was being stripped at the WordPress proxy layer, so the hosted approval page could no longer decide reliably whether to redirect after approval — sites with a strict `Referrer-Policy` could end up landing the user on a "you can close this page" terminal state instead of returning them to wp-login.php. The `/a/<token>` proxy now forwards the query string verbatim, matching the existing behaviour documented for the `/api/v1/auth-sessions/<id>` proxy.
+
 = 0.1.16 =
 * Security: bumped vendored QRAuth web component to 0.4.1, which renders QR codes locally instead of fetching them from a third-party image service (api.qrserver.com). No more outbound calls leave the visitor's browser to hosts other than your own site. Identified during WordPress.org plugin review.
 * Privacy: the readme now carries an explicit `== External services ==` section documenting every outbound call the plugin makes, with links to the QRAuth Terms, Privacy Policy, DPA, and Sub-processors list.
@@ -166,6 +169,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 * Full i18n scaffolding (POT + Greek translation source).
 
 == Upgrade Notice ==
+
+= 0.1.17 =
+Mobile sign-in robustness: the "Continue with QRAuth" flow now reliably returns users to your site after approval, including on sites that send a strict Referrer-Policy header. No configuration change required.
 
 = 0.1.16 =
 WordPress.org review fixes. Vendored web component bumped to 0.4.1 (no more api.qrserver.com fetch). External services section added to readme. Auto-provision role UI is now Subscriber-only — sites that need Contributor/Author must use the new `qrauth_psl_provisioning_role` filter.
