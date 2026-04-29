@@ -290,6 +290,18 @@ final class AuthSessionProxyController {
 
 		$destination = self::join_url( $tenant_url, '/a/' ) . rawurlencode( $token );
 
+		// Forward query string verbatim. The web-component appends `?dr=1` to
+		// the same-device "Continue with QRAuth" URL so the hosted approval
+		// page can distinguish same-device clicks from cross-device QR scans
+		// and decide whether to redirect after approval. Stripping the query
+		// here defeats that signal end-to-end. Mirrors the query-forwarding
+		// behaviour of the /api/v1/auth-sessions/<id> proxy documented in the
+		// class docblock.
+		$qs = $request->get_query_params();
+		if ( ! empty( $qs ) ) {
+			$destination .= '?' . http_build_query( $qs );
+		}
+
 		wp_redirect( $destination, 302 ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- intentional off-site redirect to the configured QRAuth tenant origin.
 		exit;
 	}
