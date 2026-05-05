@@ -1,9 +1,9 @@
 <?php
 /**
  * Plugin Name:       QRAuth – Passwordless & Social Login
- * Plugin URI:        https://qrauth.io
+ * Plugin URI:        https://github.com/qrauth-io/qrauth-passwordless-social-login
  * Description:       Passwordless and social login for WordPress powered by QRAuth web components.
- * Version:           0.1.17
+ * Version:           0.1.18
  * Requires at least: 6.4
  * Requires PHP:      8.2
  * Author:            QRAuth
@@ -18,7 +18,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'QRAUTH_PSL_VERSION', '0.1.17' );
+define( 'QRAUTH_PSL_VERSION', '0.1.18' );
 define( 'QRAUTH_PSL_FILE', __FILE__ );
 define( 'QRAUTH_PSL_DIR', plugin_dir_path( __FILE__ ) );
 define( 'QRAUTH_PSL_URL', plugin_dir_url( __FILE__ ) );
