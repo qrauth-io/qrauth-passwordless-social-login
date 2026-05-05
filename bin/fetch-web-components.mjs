@@ -106,7 +106,18 @@ async function main() {
 
 		await mkdir(DEST_DIR, { recursive: true });
 		const header = Buffer.from(
-			`/*! ${PACKAGE_NAME} v${webComponentsVersion} — vendored by qrauth-passwordless-social-login. Do not edit. */\n`
+			[
+				'/*!',
+				` * ${PACKAGE_NAME} v${webComponentsVersion}`,
+				' * Vendored by qrauth-passwordless-social-login. Do not edit by hand.',
+				' *',
+				' * Source:  https://github.com/qrauth-io/qrauth/tree/main/packages/web-components',
+				' * License: MIT',
+				' * npm:     https://www.npmjs.com/package/@qrauth/web-components',
+				' * Build:   `npm install && npm run build:assets` (see bin/fetch-web-components.mjs)',
+				' */',
+				'',
+			].join('\n')
 		);
 		await writeFile(DEST_PATH, Buffer.concat([header, iifeBuffer]));
 		console.log(`✓ Wrote ${DEST_PATH} (${iifeBuffer.length} bytes)`);

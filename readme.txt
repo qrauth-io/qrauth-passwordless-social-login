@@ -4,7 +4,7 @@ Tags: login, passwordless, qr code, social login, authentication
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.2
-Stable tag: 0.1.17
+Stable tag: 0.1.18
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -43,11 +43,32 @@ The vendored web component (`assets/js/qrauth-components.js`) is served from you
 * Data Processing Addendum: https://qrauth.io/dpa
 * List of Sub-processors: https://qrauth.io/subprocessors
 
+== Source code ==
+
+The plugin's own source — PHP, the small browser adapter (`assets/js/qrauth-adapter.js`), build scripts, tests, and CI — is publicly maintained under GPL-2.0-or-later at:
+
+* Plugin source repository: https://github.com/qrauth-io/qrauth-passwordless-social-login
+
+The PHP and `assets/js/qrauth-adapter.js` shipped in the plugin ZIP are non-minified — read them directly without checking out the repo.
+
+The vendored file `assets/js/qrauth-components.js` is a pinned production build of the public `@qrauth/web-components` library. The non-compiled source for that library is openly available:
+
+* Source repository: https://github.com/qrauth-io/qrauth/tree/main/packages/web-components (MIT-licensed)
+* npm release: https://www.npmjs.com/package/@qrauth/web-components — pinned to v0.4.1, sha512 in `package.json` under the `qrauth.webComponentsIntegrity` key
+* Build instructions for the upstream library: https://github.com/qrauth-io/qrauth/blob/main/BUILDING.md
+
+To regenerate the vendored bundle from the pinned npm release, clone the plugin source repository linked above and run from its root:
+
+`npm install`
+`npm run build:assets`
+
+The build script `bin/fetch-web-components.mjs` (kept in the plugin source repository, not in the WordPress.org plugin ZIP) downloads the npm tarball, verifies its sha512 SRI hash against `package.json#qrauth.webComponentsIntegrity`, extracts the IIFE build, and writes it to `assets/js/qrauth-components.js`. CI runs the same script before the WordPress.org plugin-check job, so the bundle distributed on the directory always matches the published npm release. To rebuild from upstream source instead of the pinned tarball, follow `BUILDING.md` in the upstream library repository above.
+
 == Installation ==
 
 1. Upload the plugin or install via WP-Admin → Plugins → Add New.
 2. Activate through the 'Plugins' menu in WordPress.
-3. Go to Settings → QRAuth and paste your Client ID and Client Secret from https://qrauth.io/dashboard/apps/create. The Client Secret is used server-side only — it never reaches the browser.
+3. Go to Settings → QRAuth and paste your Client ID and Client Secret from https://qrauth.io/dashboard. The Client Secret is used server-side only — it never reaches the browser.
 4. In the QRAuth dashboard (**Apps → your app → Redirect URLs**), register your site's login URL — typically `https://<your-site>/wp-login.php`. Without this registration, sign-in on phones (same-device approval) cannot complete; desktop sign-in works without it. The exact URL to register is shown on the Settings → QRAuth page. One registration is enough even on multilingual sites (WPML, Polylang, Weglot): the plugin uses the language-neutral admin URL, not the translated home URL, so `/en/wp-login.php` / `/fr/wp-login.php` / etc. don't need separate entries.
 5. Log out and try signing in via the "Sign in with QRAuth" button on wp-login.php.
 
@@ -97,6 +118,10 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 4. WooCommerce registration form — inline widget alongside WC's account-creation fields.
 
 == Changelog ==
+= 0.1.18 =
+* Security ecosystem compatibility: the `/verify` route now fires the canonical `wp_login` action on every successful sign-in (mirroring what core's `wp_signon()` does after `wp_set_auth_cookie()`) and `wp_login_failed` on `signature_invalid` rejections. Security plugins (Limit Login Attempts Reloaded, Wordfence, Solid Security), audit-log plugins (WP Activity Log, Simple History), MFA gates, and "last login" / session-tracking plugins now see QRAuth sign-ins exactly as if the user had authenticated through `wp-login.php`. Identified during WordPress.org plugin directory review — closes the "creating your own login method can bypass security plugins" concern raised in the review. No configuration changes required.
+* Documentation: added an `== Source code ==` section to the readme that publishes the plugin's own GitHub repository (https://github.com/qrauth-io/qrauth-passwordless-social-login, GPL-2.0-or-later) and points at the public source for the vendored `@qrauth/web-components` library (https://github.com/qrauth-io/qrauth/tree/main/packages/web-components, MIT) along with the npm release the bundle is pinned to and the `npm run build:assets` step that reproduces it. The vendored file's banner now names its source repository, license, npm release, and build entry-point inline. The plugin header's `Plugin URI:` now points at the GitHub repository instead of the QRAuth platform homepage, and a top-level `LICENSE` file (GPL-2.0) has been added to the repository so forkers and reviewers see the licence at a glance. Addresses WordPress.org plugin directory feedback that compiled JS must link to a publicly maintained, human-readable source.
+
 = 0.1.17 =
 * Fixed: same-device mobile sign-in's "Continue with QRAuth" URL no longer drops its query string when proxying to the QRAuth tenant. Without this, the signal that distinguishes same-device clicks from cross-device QR scans was being stripped at the WordPress proxy layer, so the hosted approval page could no longer decide reliably whether to redirect after approval — sites with a strict `Referrer-Policy` could end up landing the user on a "you can close this page" terminal state instead of returning them to wp-login.php. The `/a/<token>` proxy now forwards the query string verbatim, matching the existing behaviour documented for the `/api/v1/auth-sessions/<id>` proxy.
 
@@ -169,6 +194,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 * Full i18n scaffolding (POT + Greek translation source).
 
 == Upgrade Notice ==
+
+= 0.1.18 =
+Recommended. The `/verify` route now fires `wp_login` on success and `wp_login_failed` on signature mismatch so security plugins (Limit Login Attempts, Wordfence), audit logs, MFA gates, and last-login trackers see QRAuth sign-ins as if they came through wp-login.php. Also adds an `== Source code ==` readme section, switches `Plugin URI:` to the plugin's GitHub repo, and adds a top-level GPL-2.0 LICENSE file. No configuration changes required.
 
 = 0.1.17 =
 Mobile sign-in robustness: the "Continue with QRAuth" flow now reliably returns users to your site after approval, including on sites that send a strict Referrer-Policy header. No configuration change required.

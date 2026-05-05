@@ -15,8 +15,10 @@ use QRAuth\PasswordlessSocialLogin\Support\Options;
 use QRAuth\PasswordlessSocialLogin\UserLinking\UserLinker;
 use QRAuth\PasswordlessSocialLogin\Verification\QRAuthClient;
 use QRAuth\PasswordlessSocialLogin\Verification\VerifyException;
+use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
+use WP_User;
 
 /**
  * Registers and serves the plugin's single REST route.
@@ -181,6 +183,16 @@ final class RestController {
 		}
 
 		if ( true !== $result->valid ) {
+			// Surface the failed authentication attempt to the WordPress
+			// security ecosystem (Limit Login Attempts, Wordfence, audit
+			// logs, etc.) by firing the same action core fires when
+			// `wp_login.php` rejects credentials. Username is unknown at
+			// this point — QRAuth only returns the user identity on a
+			// successful verify — so an empty string is passed, matching
+			// what core does for unidentifiable failed attempts.
+			$failure_error = new WP_Error( 'qrauth_signature_invalid', __( 'QRAuth signature verification failed.', 'qrauth-passwordless-social-login' ) );
+			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- intentionally firing core's `wp_login_failed` so security plugins (Limit Login Attempts, Wordfence) count this attempt against their throttle counters.
+			do_action( 'wp_login_failed', '', $failure_error );
 			return self::error( 'signature_invalid', 400 );
 		}
 		if ( 'APPROVED' !== $result->status ) {
@@ -204,6 +216,18 @@ final class RestController {
 		// supplied to prevent open-redirect abuse.
 		wp_set_auth_cookie( $user_id, true, is_ssl() );
 		wp_set_current_user( $user_id );
+
+		// Fire the canonical successful-login action so security plugins
+		// (Limit Login Attempts, Wordfence, Solid Security), audit logs
+		// (WP Activity Log, Simple History), MFA gates, and last-login
+		// trackers all receive the event — exactly as if the user had
+		// signed in via `wp-login.php`. Mirrors what core's
+		// `wp_signon()` does after `wp_set_auth_cookie()`.
+		$user = get_userdata( $user_id );
+		if ( $user instanceof WP_User ) {
+			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- intentionally firing core's `wp_login` so security plugins, audit logs, MFA gates, and last-login trackers see this exactly like a wp-login.php sign-in.
+			do_action( 'wp_login', $user->user_login, $user );
+		}
 
 		do_action( 'qrauth_psl_user_linked', $user_id, $result );
 

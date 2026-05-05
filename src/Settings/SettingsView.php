@@ -32,7 +32,7 @@ final class SettingsView {
 		}
 
 		$options       = Options::all();
-		$get_client_id = 'https://qrauth.io/dashboard/apps/create';
+		$get_client_id = 'https://qrauth.io/dashboard';
 		// site_url (not home_url) — multilingual plugins (Polylang, WPML, Weglot)
 		// language-prefix home_url but not site_url, which is the canonical
 		// WP admin-infrastructure URL. Using site_url here means the admin
