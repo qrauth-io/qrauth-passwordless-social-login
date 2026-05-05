@@ -304,6 +304,103 @@ final class VerifyRouteTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Successful verify fires the canonical `wp_login` action so security
+	 * plugins (Limit Login Attempts, Wordfence), audit logs (WP Activity
+	 * Log, Simple History), MFA gates, and last-login trackers see the
+	 * login event — the same hook core's `wp_signon()` fires after
+	 * `wp_set_auth_cookie()`. Without this, the WordPress.org reviewer's
+	 * concern about "creating your own method can bypass security plugins"
+	 * would be a real bypass.
+	 */
+	public function test_wp_login_action_fires_on_success(): void {
+		$this->authenticate();
+		$this->fake_client->return_value = $this->make_verify_result();
+
+		$captured = array();
+		$listener = static function ( string $user_login, \WP_User $user ) use ( &$captured ): void {
+			$captured[] = array(
+				'user_login' => $user_login,
+				'user_id'    => $user->ID,
+				'user_email' => $user->user_email,
+			);
+		};
+		add_action( 'wp_login', $listener, 10, 2 );
+
+		try {
+			$response = $this->dispatch_verify( self::VALID_UUID, self::VALID_SIG );
+		} finally {
+			remove_action( 'wp_login', $listener, 10 );
+		}
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertCount( 1, $captured, 'wp_login should fire exactly once on a successful verify.' );
+		$this->assertSame( 'alice@example.com', $captured[0]['user_email'] );
+		$this->assertNotEmpty( $captured[0]['user_login'] );
+	}
+
+	/**
+	 * Signature-invalid responses fire `wp_login_failed` so security
+	 * plugins that count failed login attempts (Limit Login Attempts,
+	 * Wordfence) can throttle / block the caller's IP. Other failure
+	 * paths (nonce, rate-limit, upstream HTTP error, session pending,
+	 * provision-disabled) are NOT credential failures and intentionally
+	 * do not fire this action — verified by the sibling tests below.
+	 */
+	public function test_wp_login_failed_action_fires_on_signature_invalid(): void {
+		$this->authenticate();
+		$this->fake_client->return_value = new VerifyResult( false, '', '', '', null, null, array(), '' );
+
+		$fired    = 0;
+		$listener = static function () use ( &$fired ): void {
+			++$fired;
+		};
+		add_action( 'wp_login_failed', $listener, 10, 2 );
+
+		try {
+			$response = $this->dispatch_verify( self::VALID_UUID, self::VALID_SIG );
+		} finally {
+			remove_action( 'wp_login_failed', $listener, 10 );
+		}
+
+		$this->assertSame( 400, $response->get_status() );
+		$this->assertSame( 'signature_invalid', $response->get_data()['code'] );
+		$this->assertSame( 1, $fired, 'wp_login_failed should fire exactly once on signature_invalid.' );
+	}
+
+	/**
+	 * `wp_login_failed` should NOT fire on infrastructure failures
+	 * (nonce mismatch, upstream HTTP error, session pending) — those
+	 * are not "someone presented bad credentials" events and firing
+	 * would pollute Limit-Login-Attempts-style counters.
+	 */
+	public function test_wp_login_failed_does_not_fire_on_non_credential_failures(): void {
+		$fired    = 0;
+		$listener = static function () use ( &$fired ): void {
+			++$fired;
+		};
+		add_action( 'wp_login_failed', $listener, 10, 2 );
+
+		try {
+			// Nonce missing → 403 nonce_failed.
+			$this->dispatch_verify( self::VALID_UUID, self::VALID_SIG );
+
+			// Upstream HTTP failure → 502.
+			$this->authenticate();
+			$this->fake_client->throw_value = new VerifyException( 'verify_failed' );
+			$this->dispatch_verify( self::VALID_UUID, self::VALID_SIG );
+			$this->fake_client->throw_value = null;
+
+			// Session approved=true but status PENDING → 400 session_not_approved.
+			$this->fake_client->return_value = $this->make_verify_result( 'PENDING' );
+			$this->dispatch_verify( self::VALID_UUID, self::VALID_SIG );
+		} finally {
+			remove_action( 'wp_login_failed', $listener, 10 );
+		}
+
+		$this->assertSame( 0, $fired, 'wp_login_failed must not fire on infrastructure failures.' );
+	}
+
+	/**
 	 * Upstream raises VerifyException → 502 verify_failed.
 	 */
 	public function test_upstream_failure_returns_502(): void {
