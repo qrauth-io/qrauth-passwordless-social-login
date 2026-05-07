@@ -204,13 +204,7 @@ final class SettingsView {
 								</option>
 							</select>
 							<p class="description">
-								<?php
-								printf(
-									/* translators: %s is a code-styled filter name. */
-									esc_html__( 'Auto-provisioned accounts are created as Subscriber. Operators who explicitly need a higher role can use the %s filter — see the plugin readme.', 'qrauth-passwordless-social-login' ),
-									'<code>qrauth_psl_provisioning_role</code>'
-								);
-								?>
+								<?php esc_html_e( 'Auto-provisioned accounts are created as Subscriber. Operators who need a different role for an individual user can change it after first sign-in via Users → All Users.', 'qrauth-passwordless-social-login' ); ?>
 							</p>
 						</td>
 					</tr>

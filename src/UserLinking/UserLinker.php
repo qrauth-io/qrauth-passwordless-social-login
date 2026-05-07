@@ -22,22 +22,16 @@ use QRAuth\PasswordlessSocialLogin\Verification\VerifyResult;
  *
  *   1. Look up a WP user by the `qrauth_psl_user_id` meta value.
  *   2. Look up by email (only if the `email` scope was granted).
- *   3. If auto-provision is enabled, create a fresh user with the
- *      configured default role.
+ *   3. If auto-provision is enabled, create a fresh user with role
+ *      'subscriber'.
  *
  * Every successful resolution stamps the link meta so subsequent calls
- * short-circuit at step 1. The role is always clamped defensively to the
- * configured allowlist — even if the stored option somehow drifted, we
- * will never grant `editor` or `administrator` here.
+ * short-circuit at step 1. The auto-provisioned role is hardcoded to
+ * 'subscriber' — there is no programmatic path to elevate.
  *
  * @since 0.1.0
  */
 final class UserLinker {
-
-	/**
-	 * Roles safe to auto-provision. Defence-in-depth over the sanitiser.
-	 */
-	private const SAFE_ROLES = array( 'subscriber', 'contributor', 'author' );
 
 	/**
 	 * Resolve or create a WordPress user for the given verified QRAuth result.
@@ -81,30 +75,11 @@ final class UserLinker {
 			throw new VerifyException( 'provision_disabled', 'Cannot provision without email' );
 		}
 
-		// Defensive: even if the stored option somehow drifted, SAFE_ROLES caps
-		// the maximum auto-provision-eligible role at 'author'. The settings UI
-		// only exposes 'subscriber' as of 0.1.16; the SAFE_ROLES list is kept
-		// at sub/con/auth purely as the ceiling for the filter below.
-		$role = in_array( $options['default_role'], self::SAFE_ROLES, true ) ? $options['default_role'] : 'subscriber';
-
-		/**
-		 * Filters the role assigned to an auto-provisioned QRAuth user.
-		 *
-		 * Default is whatever is configured in Settings → QRAuth, which the UI
-		 * caps at 'subscriber' as of 0.1.16. Operators with an explicit reason
-		 * (e.g. a closed community where contributors are vetted) can return
-		 * 'contributor' or 'author' from this filter. Return values outside
-		 * SAFE_ROLES (subscriber/contributor/author) are clamped to 'subscriber'
-		 * as a defence-in-depth measure: editor and administrator can never be
-		 * auto-provisioned, regardless of filter return value.
-		 *
-		 * @since 0.1.16
-		 *
-		 * @param string       $role   Role about to be assigned.
-		 * @param VerifyResult $result Verified payload describing the QRAuth user.
-		 */
-		$filtered = (string) apply_filters( 'qrauth_psl_provisioning_role', $role, $result );
-		$role     = in_array( $filtered, self::SAFE_ROLES, true ) ? $filtered : 'subscriber';
+		// Auto-provisioned accounts are hardcoded to 'subscriber' at every
+		// layer (settings UI, sanitiser, runtime) — there is no programmatic
+		// path to elevate. Operators who need a different role per user must
+		// change it manually via Users → All Users after first sign-in.
+		$role = 'subscriber';
 
 		$user_id = wp_insert_user(
 			array(
