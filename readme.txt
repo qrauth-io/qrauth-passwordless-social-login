@@ -4,7 +4,7 @@ Tags: login, passwordless, qr code, social login, authentication
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.2
-Stable tag: 0.1.18
+Stable tag: 0.1.19
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -16,7 +16,7 @@ QRAuth replaces the password field on your WordPress login page with a drop-in Q
 
 **One Client ID is the only configuration.** Paste it into Settings → QRAuth and the widget appears on wp-login.php. Everything else — the approval flow, the signing, the token refresh — lives in the QRAuth platform.
 
-**Account safety is the default.** Auto-provisioning is off out of the box: only WordPress users who already exist (matched on email) can sign in via QRAuth. Flip on auto-provisioning and new users are created as Subscriber — that's the only role the settings UI offers, intentionally. Operators who need to grant a different role programmatically can do so via the `qrauth_psl_provisioning_role` filter, capped at Author (Editor and Administrator are never auto-provisioned). The plugin never stores the signing material, never issues a redirect outside your site, and never touches your user table on uninstall.
+**Account safety is the default.** Auto-provisioning is off out of the box: only WordPress users who already exist (matched on email) can sign in via QRAuth. Flip on auto-provisioning and new users are created as Subscriber — that's the only role available, intentionally and at every layer (settings UI, sanitiser, runtime). Operators who need a different role for an individual user can change it manually via Users → All Users after their first sign-in. The plugin never stores the signing material, never issues a redirect outside your site, and never touches your user table on uninstall.
 
 **Self-hosted, no third-party scripts on wp-login.php.** The QRAuth web component ships vendored inside the plugin — the only outbound call is from your server to QRAuth's verification endpoint during a sign-in attempt.
 
@@ -43,7 +43,7 @@ The vendored web component (`assets/js/qrauth-components.js`) is served from you
 * Data Processing Addendum: https://qrauth.io/dpa
 * List of Sub-processors: https://qrauth.io/subprocessors
 
-== Source code ==
+== External resources ==
 
 The plugin's own source — PHP, the small browser adapter (`assets/js/qrauth-adapter.js`), build scripts, tests, and CI — is publicly maintained under GPL-2.0-or-later at:
 
@@ -88,7 +88,7 @@ Yes. If a scanned account's email matches an existing WordPress user, they log i
 
 = What role do new users get? =
 
-Subscriber. As of 0.1.16 the settings UI only offers Subscriber for auto-provisioned accounts — this aligns with WordPress.org plugin guidelines for sign-in plugins that create users post-external-verification. Operators who explicitly need to grant Contributor or Author can do so programmatically via the `qrauth_psl_provisioning_role` filter; the maximum allowed even via filter is Author. Editor and Administrator are never auto-provisioned by this plugin under any configuration.
+Subscriber, hardcoded. The settings UI only offers Subscriber, the sanitiser clamps any other value to Subscriber, and the provisioner ignores the stored option entirely and uses Subscriber unconditionally — this aligns with WordPress.org plugin directory guidelines for sign-in plugins that create users post-external-verification. There is no plugin-provided code path (filter, action, option, or constant) to elevate the auto-provisioning role. If a particular user needs a higher role, change it manually via Users → All Users after their first sign-in.
 
 = Can I unlink a WordPress account from QRAuth? =
 
@@ -118,9 +118,12 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 4. WooCommerce registration form — inline widget alongside WC's account-creation fields.
 
 == Changelog ==
+= 0.1.19 =
+* Account safety: the `qrauth_psl_provisioning_role` filter introduced in 0.1.16 has been removed. Auto-provisioned users are now hardcoded to the `subscriber` role at every layer — settings UI, sanitiser, and runtime provisioner — with no programmatic path (filter, action, option, or constant) to elevate. Operators who need a different role for an individual user must update it manually via Users → All Users after first sign-in. Identified during WordPress.org plugin directory review (creating users post-external-verification must be capped at the lowest privilege role).
+
 = 0.1.18 =
 * Security ecosystem compatibility: the `/verify` route now fires the canonical `wp_login` action on every successful sign-in (mirroring what core's `wp_signon()` does after `wp_set_auth_cookie()`) and `wp_login_failed` on `signature_invalid` rejections. Security plugins (Limit Login Attempts Reloaded, Wordfence, Solid Security), audit-log plugins (WP Activity Log, Simple History), MFA gates, and "last login" / session-tracking plugins now see QRAuth sign-ins exactly as if the user had authenticated through `wp-login.php`. Identified during WordPress.org plugin directory review — closes the "creating your own login method can bypass security plugins" concern raised in the review. No configuration changes required.
-* Documentation: added an `== Source code ==` section to the readme that publishes the plugin's own GitHub repository (https://github.com/qrauth-io/qrauth-passwordless-social-login, GPL-2.0-or-later) and points at the public source for the vendored `@qrauth/web-components` library (https://github.com/qrauth-io/qrauth/tree/main/packages/web-components, MIT) along with the npm release the bundle is pinned to and the `npm run build:assets` step that reproduces it. The vendored file's banner now names its source repository, license, npm release, and build entry-point inline. The plugin header's `Plugin URI:` now points at the GitHub repository instead of the QRAuth platform homepage, and a top-level `LICENSE` file (GPL-2.0) has been added to the repository so forkers and reviewers see the licence at a glance. Addresses WordPress.org plugin directory feedback that compiled JS must link to a publicly maintained, human-readable source.
+* Documentation: added an `== External resources ==` section to the readme that publishes the plugin's own GitHub repository (https://github.com/qrauth-io/qrauth-passwordless-social-login, GPL-2.0-or-later) and points at the public source for the vendored `@qrauth/web-components` library (https://github.com/qrauth-io/qrauth/tree/main/packages/web-components, MIT) along with the npm release the bundle is pinned to and the `npm run build:assets` step that reproduces it. The vendored file's banner now names its source repository, license, npm release, and build entry-point inline. The plugin header's `Plugin URI:` now points at the GitHub repository instead of the QRAuth platform homepage, and a top-level `LICENSE` file (GPL-2.0) has been added to the repository so forkers and reviewers see the licence at a glance. Addresses WordPress.org plugin directory feedback that compiled JS must link to a publicly maintained, human-readable source.
 
 = 0.1.17 =
 * Fixed: same-device mobile sign-in's "Continue with QRAuth" URL no longer drops its query string when proxying to the QRAuth tenant. Without this, the signal that distinguishes same-device clicks from cross-device QR scans was being stripped at the WordPress proxy layer, so the hosted approval page could no longer decide reliably whether to redirect after approval — sites with a strict `Referrer-Policy` could end up landing the user on a "you can close this page" terminal state instead of returning them to wp-login.php. The `/a/<token>` proxy now forwards the query string verbatim, matching the existing behaviour documented for the `/api/v1/auth-sessions/<id>` proxy.
@@ -195,8 +198,11 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 
 == Upgrade Notice ==
 
+= 0.1.19 =
+Recommended. Removes the `qrauth_psl_provisioning_role` filter — auto-provisioned users are now hardcoded to Subscriber with no code path to elevate. Operators needing a different role for a user must change it manually via Users → All Users after first sign-in. WordPress.org review fix.
+
 = 0.1.18 =
-Recommended. The `/verify` route now fires `wp_login` on success and `wp_login_failed` on signature mismatch so security plugins (Limit Login Attempts, Wordfence), audit logs, MFA gates, and last-login trackers see QRAuth sign-ins as if they came through wp-login.php. Also adds an `== Source code ==` readme section, switches `Plugin URI:` to the plugin's GitHub repo, and adds a top-level GPL-2.0 LICENSE file. No configuration changes required.
+Recommended. The `/verify` route now fires `wp_login` on success and `wp_login_failed` on signature mismatch so security plugins (Limit Login Attempts, Wordfence), audit logs, MFA gates, and last-login trackers see QRAuth sign-ins as if they came through wp-login.php. Also adds an `== External resources ==` readme section, switches `Plugin URI:` to the plugin's GitHub repo, and adds a top-level GPL-2.0 LICENSE file. No configuration changes required.
 
 = 0.1.17 =
 Mobile sign-in robustness: the "Continue with QRAuth" flow now reliably returns users to your site after approval, including on sites that send a strict Referrer-Policy header. No configuration change required.

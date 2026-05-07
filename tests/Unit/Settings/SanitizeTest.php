@@ -258,10 +258,11 @@ final class SanitizeTest extends TestCase {
 	}
 
 	/**
-	 * As of 0.1.16 the sanitiser allowlist is just `['subscriber']` —
-	 * `contributor` and `author`, formerly accepted, now fall back to
-	 * `subscriber`. Higher roles are reachable only via the
-	 * `qrauth_psl_provisioning_role` filter at provision time.
+	 * The sanitiser allowlist is just `['subscriber']` — `contributor` and
+	 * `author`, formerly accepted, fall back to `subscriber`. Higher roles
+	 * are not reachable through any plugin-provided code path (the
+	 * `qrauth_psl_provisioning_role` filter was removed in 0.1.18 per
+	 * WordPress.org plugin directory feedback).
 	 */
 	public function test_default_role_contributor_and_author_fall_back_to_subscriber(): void {
 		$clean = Settings::sanitize( array( 'default_role' => 'contributor' ) );

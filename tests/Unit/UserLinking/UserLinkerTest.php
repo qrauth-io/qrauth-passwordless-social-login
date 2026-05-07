@@ -210,14 +210,14 @@ final class UserLinkerTest extends TestCase {
 	}
 
 	/**
-	 * Happy provision path: creates a user with the default role, stamps meta,
-	 * fires `qrauth_psl_user_provisioned`.
+	 * Happy provision path: creates a user with the hardcoded 'subscriber'
+	 * role, stamps meta, fires `qrauth_psl_user_provisioned`.
 	 */
-	public function test_provision_creates_user_with_default_role(): void {
+	public function test_provision_creates_user_with_subscriber_role(): void {
 		$this->stub_options(
 			array(
 				'auto_provision' => true,
-				'default_role'   => 'author',
+				'default_role'   => 'subscriber',
 			)
 		);
 
@@ -233,16 +233,17 @@ final class UserLinkerTest extends TestCase {
 
 		$this->assertSame( 101, $uid );
 		$this->assertCount( 1, $this->inserts );
-		$this->assertSame( 'author', $this->inserts[0]['role'] );
+		$this->assertSame( 'subscriber', $this->inserts[0]['role'] );
 		$this->assertSame( 'alice@example.com', $this->inserts[0]['user_email'] );
 		$this->assertSame( 'alice', $this->inserts[0]['user_login'] );
 	}
 
 	/**
-	 * Drifted default_role (somehow stored as `administrator`) is clamped to
-	 * `subscriber` before `wp_insert_user` sees it.
+	 * Even if the stored option somehow drifted to a higher role
+	 * (`administrator`, `editor`, `author`, `contributor`), the provisioner
+	 * hardcodes `subscriber` — there is no programmatic way to elevate.
 	 */
-	public function test_provision_clamps_unsafe_role_to_subscriber(): void {
+	public function test_provision_ignores_drifted_option_and_uses_subscriber(): void {
 		$this->stub_options(
 			array(
 				'auto_provision' => true,
