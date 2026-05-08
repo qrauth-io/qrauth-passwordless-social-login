@@ -13,6 +13,8 @@
 !/assets/js/.gitkeep
 !/assets/js/qrauth-components.js
 !/assets/js/qrauth-adapter.js
+!/assets/js/source/
+!/assets/js/source/**
 
 # Tooling caches
 .phpcs.cache
