@@ -4,7 +4,7 @@ Tags: login, passwordless, qr code, social login, authentication
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.2
-Stable tag: 0.1.19
+Stable tag: 0.1.20
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -19,6 +19,8 @@ QRAuth replaces the password field on your WordPress login page with a drop-in Q
 **Account safety is the default.** Auto-provisioning is off out of the box: only WordPress users who already exist (matched on email) can sign in via QRAuth. Flip on auto-provisioning and new users are created as Subscriber — that's the only role available, intentionally and at every layer (settings UI, sanitiser, runtime). Operators who need a different role for an individual user can change it manually via Users → All Users after their first sign-in. The plugin never stores the signing material, never issues a redirect outside your site, and never touches your user table on uninstall.
 
 **Self-hosted, no third-party scripts on wp-login.php.** The QRAuth web component ships vendored inside the plugin — the only outbound call is from your server to QRAuth's verification endpoint during a sign-in attempt.
+
+**Open source build.** The compressed JavaScript at `assets/js/qrauth-components.js` is built from publicly available TypeScript source at https://github.com/qrauth-io/qrauth/tree/main/packages/web-components. The unminified source files are also vendored alongside the minified bundle inside this plugin (`assets/js/source/`) for offline review. See the **Source** section below for build instructions.
 
 == External services ==
 
@@ -43,7 +45,28 @@ The vendored web component (`assets/js/qrauth-components.js`) is served from you
 * Data Processing Addendum: https://qrauth.io/dpa
 * List of Sub-processors: https://qrauth.io/subprocessors
 
-== External resources ==
+== Source ==
+
+<!-- Keep the banner code block below in sync with the first lines of assets/js/qrauth-components.js after every web-components version bump. -->
+
+The compiled bundle at `assets/js/qrauth-components.js` carries the following banner header at the top of the file:
+
+```
+/*!
+ * @qrauth/web-components v0.4.1
+ * Vendored by qrauth-passwordless-social-login. Do not edit by hand.
+ *
+ * Source:  https://github.com/qrauth-io/qrauth/tree/main/packages/web-components
+ * License: MIT
+ * npm:     https://www.npmjs.com/package/@qrauth/web-components
+ * Build:   `npm install && npm run build:assets` (see bin/fetch-web-components.mjs)
+ *
+ * The unminified TypeScript source for this bundle is also vendored at
+ * assets/js/source/ — see assets/js/source/README.md for provenance.
+ */
+```
+
+The unminified TypeScript source files are also vendored alongside the compiled bundle inside this plugin (`assets/js/source/`) for offline review.
 
 The plugin's own source — PHP, the small browser adapter (`assets/js/qrauth-adapter.js`), build scripts, tests, and CI — is publicly maintained under GPL-2.0-or-later at:
 
@@ -118,6 +141,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 4. WooCommerce registration form — inline widget alongside WC's account-creation fields.
 
 == Changelog ==
+= 0.1.20 =
+* Compliance: vendored the TypeScript source for the bundled `@qrauth/web-components` library at `assets/js/source/` alongside the minified bundle, so reviewers and integrators can read the unminified source without leaving the plugin. The readme's `== Source ==` section (renamed from `== External resources ==` for clarity) and the Description's "Open source build" paragraph also link to the canonical upstream repository and build instructions. WordPress.org plugin guideline 4 (human-readable code).
+
 = 0.1.19 =
 * Account safety: the `qrauth_psl_provisioning_role` filter introduced in 0.1.16 has been removed. Auto-provisioned users are now hardcoded to the `subscriber` role at every layer — settings UI, sanitiser, and runtime provisioner — with no programmatic path (filter, action, option, or constant) to elevate. Operators who need a different role for an individual user must update it manually via Users → All Users after first sign-in. Identified during WordPress.org plugin directory review (creating users post-external-verification must be capped at the lowest privilege role).
 
@@ -197,6 +223,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 * Full i18n scaffolding (POT + Greek translation source).
 
 == Upgrade Notice ==
+
+= 0.1.20 =
+WordPress.org plugin review compliance: unminified TypeScript source for the bundled web-components library is now vendored alongside the compiled bundle. No runtime behaviour change.
 
 = 0.1.19 =
 Recommended. Removes the `qrauth_psl_provisioning_role` filter — auto-provisioned users are now hardcoded to Subscriber with no code path to elevate. Operators needing a different role for a user must change it manually via Users → All Users after first sign-in. WordPress.org review fix.
