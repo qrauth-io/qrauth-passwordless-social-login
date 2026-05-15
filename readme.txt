@@ -4,7 +4,7 @@ Tags: login, passwordless, qr code, social login, authentication
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.2
-Stable tag: 0.1.21
+Stable tag: 0.1.22
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -141,6 +141,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 4. WooCommerce registration form — inline widget alongside WC's account-creation fields.
 
 == Changelog ==
+= 0.1.22 =
+* Re-submission for WordPress.org plugin directory review. No source-code changes vs 0.1.21 — only the version metadata is bumped. The round-4 review comments cited line numbers that pre-dated 0.1.21's `wp_login_url()` migration, so this bump exists only to ensure the reviewer's tooling re-scans the post-fix tree.
+
 = 0.1.21 =
 * Use `wp_login_url()` instead of hardcoded `site_url('/wp-login.php')` for the two locations that reference the W login URL. This respects security plugins that move wp-login.php to a custom URL and is the recommended pattern per the WordPress developer handbook.
 
@@ -226,6 +229,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 * Full i18n scaffolding (POT + Greek translation source).
 
 == Upgrade Notice ==
+
+= 0.1.22 =
+Version bump only — no source-code changes vs 0.1.21. Re-submission for WordPress.org plugin directory review.
 
 = 0.1.21 =
 Better compatibility with security plugins that move the login URL: the plugin now uses wp_login_url() instead of hardcoded /wp-login.php references.
