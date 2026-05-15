@@ -2,10 +2,10 @@
 /**
  * Unit tests for {@see RestController::decide_redirect()}.
  *
- * Pure Brain\Monkey — no WP harness. Stubs the four WP helpers the
- * method touches (`admin_url`, `site_url`, `wp_validate_redirect`,
- * `wp_parse_url`) plus `wc_get_page_permalink`. `WP_REST_Request` is
- * loaded from `tests/stubs/wp-rest-request.php`.
+ * Pure Brain\Monkey — no WP harness. Stubs the WP helpers the method
+ * touches (`admin_url`, `site_url`, `wp_login_url`,
+ * `wp_validate_redirect`, `wp_parse_url`) plus `wc_get_page_permalink`.
+ * `WP_REST_Request` is loaded from `tests/stubs/wp-rest-request.php`.
  *
  * The "no WooCommerce active" branch (where `function_exists(
  * 'wc_get_page_permalink' )` returns false) is deliberately NOT covered
@@ -48,6 +48,7 @@ final class RedirectDecisionTest extends TestCase {
 				return 'https://example.test' . $path;
 			}
 		);
+		Functions\when( 'wp_login_url' )->justReturn( 'https://example.test/wp-login.php' );
 		Functions\when( 'wp_parse_url' )->alias(
 			static function ( $url, $component = -1 ) {
 				if ( ! is_string( $url ) || '' === $url ) {

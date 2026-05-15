@@ -33,12 +33,14 @@ final class SettingsView {
 
 		$options       = Options::all();
 		$get_client_id = 'https://qrauth.io/dashboard';
-		// site_url (not home_url) — multilingual plugins (Polylang, WPML, Weglot)
-		// language-prefix home_url but not site_url, which is the canonical
-		// WP admin-infrastructure URL. Using site_url here means the admin
-		// registers one URL in the QRAuth dashboard that works across all
-		// languages, not one per language.
-		$login_url = site_url( '/wp-login.php' );
+		// wp_login_url() is filterable, so security plugins (WPS Hide Login,
+		// etc.) that move the default login URL keep working. The default
+		// resolves to the site_url-based login path — site_url is the
+		// canonical admin-infrastructure base. Multilingual plugins
+		// (Polylang, WPML, Weglot) language-prefix home_url but not the
+		// site_url base, so the admin registers one URL in the QRAuth
+		// dashboard that works across all languages.
+		$login_url = wp_login_url();
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'QRAuth — Passwordless & Social Login', 'qrauth-passwordless-social-login' ); ?></h1>
