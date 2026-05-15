@@ -49,6 +49,7 @@ final class LoginWidgetTest extends TestCase {
 				return 'https://example.test' . $path;
 			}
 		);
+		Functions\when( 'wp_login_url' )->justReturn( 'https://example.test/wp-login.php' );
 		Functions\when( 'rest_url' )->alias(
 			static function ( $path = '' ) {
 				return 'https://example.test/wp-json/' . ltrim( (string) $path, '/' );

@@ -296,10 +296,12 @@ final class RestController {
 		}
 
 		// wp-login.php (and its action-variant pages) → admin. Matches
-		// the paths site_url('/wp-login.php') can produce so we behave
-		// the same whether Referer is `wp-login.php` or
-		// `wp-login.php?action=register`.
-		if ( self::referer_matches( $validated, site_url( '/wp-login.php' ) ) ) {
+		// the paths wp_login_url() can produce so we behave the same
+		// whether Referer is `wp-login.php` or `wp-login.php?action=register`.
+		// wp_login_url() is used (not the literal /wp-login.php) so that
+		// security plugins moving the login URL via the `login_url` filter
+		// still match correctly.
+		if ( self::referer_matches( $validated, wp_login_url() ) ) {
 			return $default;
 		}
 

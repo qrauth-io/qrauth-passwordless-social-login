@@ -4,7 +4,7 @@ Tags: login, passwordless, qr code, social login, authentication
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 8.2
-Stable tag: 0.1.20
+Stable tag: 0.1.21
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -141,6 +141,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 4. WooCommerce registration form — inline widget alongside WC's account-creation fields.
 
 == Changelog ==
+= 0.1.21 =
+* Use `wp_login_url()` instead of hardcoded `site_url('/wp-login.php')` for the two locations that reference the W login URL. This respects security plugins that move wp-login.php to a custom URL and is the recommended pattern per the WordPress developer handbook.
+
 = 0.1.20 =
 * Compliance: vendored the TypeScript source for the bundled `@qrauth/web-components` library at `assets/js/source/` alongside the minified bundle, so reviewers and integrators can read the unminified source without leaving the plugin. The readme's `== Source ==` section (renamed from `== External resources ==` for clarity) and the Description's "Open source build" paragraph also link to the canonical upstream repository and build instructions. WordPress.org plugin guideline 4 (human-readable code).
 
@@ -223,6 +226,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 * Full i18n scaffolding (POT + Greek translation source).
 
 == Upgrade Notice ==
+
+= 0.1.21 =
+Better compatibility with security plugins that move the login URL: the plugin now uses wp_login_url() instead of hardcoded /wp-login.php references.
 
 = 0.1.20 =
 WordPress.org plugin review compliance: unminified TypeScript source for the bundled web-components library is now vendored alongside the compiled bundle. No runtime behaviour change.
