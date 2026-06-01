@@ -1,0 +1,67 @@
+name: Deploy to WordPress.org
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Build and deploy to WP.org SVN
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer
+          coverage: none
+
+      - name: Composer install (production deps only)
+        run: composer install --no-dev --prefer-dist --optimize-autoloader
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: NPM install
+        run: npm ci
+
+      - name: Fetch and pin web-components bundle
+        run: npm run build:assets
+
+      - name: Sanity check — no qrserver in bundle
+        run: |
+          if grep -q "api.qrserver.com" assets/js/qrauth-components.js; then
+            echo "::error::Bundled IIFE contains api.qrserver.com — aborting deploy"
+            exit 1
+          fi
+
+      - name: Sanity check — plugin Version matches git tag
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          HEADER_VERSION=$(grep -E '^\s*\*\s*Version:' qrauth-passwordless-social-login.php | awk -F: '{print $2}' | xargs)
+          STABLE_VERSION=$(grep -E '^Stable tag:' readme.txt | awk -F: '{print $2}' | xargs)
+          echo "Tag: $TAG_VERSION | Header: $HEADER_VERSION | Stable: $STABLE_VERSION"
+          if [ "$TAG_VERSION" != "$HEADER_VERSION" ] || [ "$TAG_VERSION" != "$STABLE_VERSION" ]; then
+            echo "::error::Version mismatch — tag, plugin header, and readme Stable tag must all match"
+            exit 1
+          fi
+
+      - name: WordPress Plugin Deploy
+        uses: 10up/action-wordpress-plugin-deploy@stable
+        env:
+          SVN_USERNAME: ${{ secrets.WPORG_SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.WPORG_SVN_PASSWORD }}
+          SLUG: qrauth-passwordless-social-login
+          ASSETS_DIR: .wordpress-org
+          BUILD_DIR: ./

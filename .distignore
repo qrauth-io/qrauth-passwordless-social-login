@@ -1,0 +1,30 @@
+# Version control
+.git
+.github
+.gitignore
+.gitattributes
+
+# WP.org deploy artifacts
+.distignore
+.wordpress-org
+
+# Build & dev
+node_modules
+package-lock.json
+.editorconfig
+phpcs.xml.dist
+phpunit.xml.dist
+composer.lock
+
+# Test suites
+tests
+phpunit.xml
+
+# Internal specs / drafts
+SPECS
+
+# Misc dotfiles
+.DS_Store
+.idea
+.vscode
+*.log
