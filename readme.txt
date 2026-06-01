@@ -135,10 +135,10 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 
 == Screenshots ==
 
-1. wp-login.php with the "Sign in with QRAuth" button under the password field.
-2. Widget active — animated QR, session countdown, and "Continue on this device" CTA for mobile users.
-3. Settings → QRAuth — Client ID, Client Secret, Tenant URL, auto-provision toggle, default role, allowed scopes, and per-surface enable switches.
-4. WooCommerce registration form — inline widget alongside WC's account-creation fields.
+1. wp-login.php with the "Sign in with QRAuth" button under the password field — drop-in passwordless sign-in, no configuration needed beyond the Client ID.
+2. The QRAuth widget active with the animated QR code, session countdown, and "Continue on this device" CTA for users on mobile devices.
+3. Settings → QRAuth admin page — Client ID, Client Secret, Tenant URL, auto-provision toggle, default role, allowed scopes, and per-surface enable switches.
+4. The QRAuth dashboard at qrauth.io — where site operators generate the Client ID and Client Secret to paste into the plugin settings.
 
 == Changelog ==
 = 0.1.23 =
