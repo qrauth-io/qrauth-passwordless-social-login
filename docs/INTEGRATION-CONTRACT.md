@@ -20,7 +20,7 @@ Version: 1.1 (2026-04-21). Pinned against `@qrauth/web-components@0.4.0` and QRA
 
 QRAuth is a hosted identity platform. A CMS site that embeds the QRAuth widget gets three capabilities in one drop-in:
 
-1. **QR-based passwordless login** — user scans an animated Living Code with their QRAuth mobile app, approves, and is signed in.
+1. **QR-based passwordless login** — user scans an animated Living Code with their phone camera, approves on QRAuth's hosted approval page in the phone browser, and is signed in. There is no mobile app to install.
 2. **Social login** — Google, GitHub, Microsoft, Apple are brokered by QRAuth's hosted approval page. The CMS site does not register OAuth apps.
 3. **Cryptographic assertion** — on approval, QRAuth returns an ECDSA-P256 signature over the session. The CMS backend verifies it against QRAuth's `/verify-result` endpoint before trusting the identity.
 
@@ -39,7 +39,7 @@ The unfair advantage vs. every existing per-provider plugin: the site owner past
      |                                                  ^
      | scan / approve on phone                          |
      +--------------------------------------------------+
-              (QRAuth mobile app -> QRAuth hosted approval page)
+              (phone camera -> QRAuth hosted approval page in the phone browser)
 ```
 
 - **Browser** — runs the `<qrauth-login>` web component. Holds the PKCE `code_verifier` in memory for the lifetime of the session. Emits `qrauth:authenticated` with `{sessionId, user, signature}` on approval.
@@ -58,7 +58,7 @@ The embedded widget uses the OAuth 2.0 PKCE pattern. The CMS backend is never in
 
 - **Public client**: the `<qrauth-login>` web component running in the user's browser. Identified by `X-Client-Id` only — **no client secret**.
 - **Hosted approval page**: `https://qrauth.io/a/:token` — renders the QR, handles social-login buttons, collects the user's Approve/Deny decision.
-- **Mobile app**: the QRAuth phone app that scans the Living Code and approves the session.
+- **User's phone**: the native camera scans the Living Code, which opens the hosted approval page in the phone browser, where the user approves the session. There is no QRAuth mobile app.
 
 ### 3.2 Sequence
 
@@ -71,7 +71,7 @@ The embedded widget uses the OAuth 2.0 PKCE pattern. The CMS backend is never in
            token: '01HX...',
            qrUrl, qrDataUrl, status: 'PENDING', scopes, expiresAt }
 3. Browser renders QR for qrUrl OR opens /a/:token in a new tab on mobile.
-4. User scans with the QRAuth app OR completes social login on the approval page.
+4. User scans the QR with their phone camera, which opens /a/:token in the phone browser, and approves there (social login is offered on the same page).
 5. Browser polls GET /api/v1/auth-sessions/:id?code_verifier=<verifier>
    (or subscribes to GET /api/v1/auth-sessions/:id/sse?code_verifier=<verifier>)
    -> while PENDING: { status: 'PENDING', user: null, signature: null }
@@ -494,7 +494,7 @@ The canonical identifier from QRAuth is `user.id` (opaque, stable per QRAuth use
 
 - Account recovery if the user loses their QRAuth device (handled by QRAuth's own recovery flows).
 - Session revocation after login — once the CMS issues its own session cookie, that session's lifecycle is the CMS's responsibility.
-- Cross-device session migration (handled by QRAuth mobile app UX).
+- Cross-device session migration (handled by QRAuth, outside this contract).
 
 ---
 
