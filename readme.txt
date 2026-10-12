@@ -8,11 +8,11 @@ Stable tag: 0.1.23
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Passwordless sign-in for WordPress. Users scan a QR code with the QRAuth mobile app — no passwords, no forms, no OAuth apps to register.
+Passwordless sign-in for WordPress. Users scan a QR code or sign in with a social account — no passwords, no forms, no OAuth apps to register.
 
 == Description ==
 
-QRAuth replaces the password field on your WordPress login page with a drop-in QR widget. Users sign in by scanning with the QRAuth mobile app; a cryptographic signature is verified server-to-server before WordPress sets the auth cookie. Social login (Google, GitHub, Microsoft, Apple) is brokered by QRAuth's hosted approval page, so you never have to register an OAuth app or hold a client secret.
+QRAuth replaces the password field on your WordPress login page with a drop-in QR widget. Users sign in by scanning the QR code with their phone; a cryptographic signature is verified server-to-server before WordPress sets the auth cookie. Social login (Google, GitHub, Microsoft, Apple) is brokered by QRAuth's hosted approval page, so you never have to register an OAuth app or hold a client secret.
 
 **One Client ID is the only configuration.** Paste it into Settings → QRAuth and the widget appears on wp-login.php. Everything else — the approval flow, the signing, the token refresh — lives in the QRAuth platform.
 
@@ -33,7 +33,7 @@ QRAuth verifies that the user who scanned the QR code (or completed a social-pro
 **What data is sent and when**
 
 * **Auth-session creation** — when a visitor opens a page that hosts the widget (wp-login.php, the registration form, a shortcode-enabled page, or a WooCommerce sign-in form), the plugin's same-origin REST proxy sends your Client ID, Client Secret (server-side only — never exposed to the browser), and the host page URL to `https://qrauth.io/api/v1/auth-sessions`. No visitor data is included in this request.
-* **Sign-in verification** — when the visitor approves the sign-in (by scanning with the QRAuth mobile app or completing a social-provider flow on QRAuth's hosted approval page), the plugin's REST proxy fetches the verified result from `https://qrauth.io/api/v1/auth-sessions/verify-result`. The response carries the QRAuth user identifier and, when the `email` scope is allowed in Settings → QRAuth, the user's email address. The plugin uses this only to locate or create the matching WordPress user; nothing beyond a hashed link reference is retained.
+* **Sign-in verification** — when the visitor approves the sign-in (by scanning the QR code with their phone or completing a social-provider flow on QRAuth's hosted approval page), the plugin's REST proxy fetches the verified result from `https://qrauth.io/api/v1/auth-sessions/verify-result`. The response carries the QRAuth user identifier and, when the `email` scope is allowed in Settings → QRAuth, the user's email address. The plugin uses this only to locate or create the matching WordPress user; nothing beyond a hashed link reference is retained.
 * **Hosted approval page** — when a visitor on a phone taps "Continue with QRAuth", the browser navigates to `https://qrauth.io/a/<token>` to complete the social-provider flow. This is a standard cross-domain navigation initiated by the visitor.
 
 The vendored web component (`assets/js/qrauth-components.js`) is served from your own WordPress site — there is no third-party JavaScript on wp-login.php, and the component does not contact qrauth.io directly from the browser; all server-to-server calls are proxied via your site's REST API.
@@ -51,20 +51,18 @@ The vendored web component (`assets/js/qrauth-components.js`) is served from you
 
 The compiled bundle at `assets/js/qrauth-components.js` carries the following banner header at the top of the file:
 
-```
-/*!
- * @qrauth/web-components v0.4.1
- * Vendored by qrauth-passwordless-social-login. Do not edit by hand.
- *
- * Source:  https://github.com/qrauth-io/qrauth/tree/main/packages/web-components
- * License: MIT
- * npm:     https://www.npmjs.com/package/@qrauth/web-components
- * Build:   `npm install && npm run build:assets` (see bin/fetch-web-components.mjs)
- *
- * The unminified TypeScript source for this bundle is also vendored at
- * assets/js/source/ — see assets/js/source/README.md for provenance.
- */
-```
+    /*!
+     * @qrauth/web-components v0.4.1
+     * Vendored by qrauth-passwordless-social-login. Do not edit by hand.
+     *
+     * Source:  https://github.com/qrauth-io/qrauth/tree/main/packages/web-components
+     * License: MIT
+     * npm:     https://www.npmjs.com/package/@qrauth/web-components
+     * Build:   `npm install && npm run build:assets` (see bin/fetch-web-components.mjs)
+     *
+     * The unminified TypeScript source for this bundle is also vendored at
+     * assets/js/source/ — see assets/js/source/README.md for provenance.
+     */
 
 The unminified TypeScript source files are also vendored alongside the compiled bundle inside this plugin (`assets/js/source/`) for offline review.
 
@@ -99,7 +97,7 @@ The build script `bin/fetch-web-components.mjs` (kept in the plugin source repos
 
 = Do my users need a QRAuth account? =
 
-Only if they sign in via QR. They install the free QRAuth mobile app once, scan the code on your login page, and approve on their phone. For social login (Google, GitHub, Microsoft, Apple) the user simply taps the provider on QRAuth's hosted approval page — they don't need a QRAuth account at all.
+No, and there is no app to install. They scan the code on your login page with their phone, tap their social provider (Google, GitHub, Microsoft, Apple) on QRAuth's hosted approval page, and approve — they don't need a QRAuth account at all.
 
 = Where are passwords stored? =
 
