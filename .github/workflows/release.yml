@@ -170,11 +170,14 @@ jobs:
           rsync -rc --delete --exclude='.svn' "../tree/" trunk/
           svn add --force --quiet trunk
           # Files that left the tree are removed from trunk.
-          svn status trunk | grep '^!' | sed 's/^! *//' | while IFS= read -r gone; do svn rm --quiet "$gone"; done
+          # (`|| true`: with nothing removed, grep finds no line and would
+          # otherwise end the step under `set -e -o pipefail`.)
+          { svn status trunk | grep '^!' || true; } | sed 's/^! *//' | while IFS= read -r gone; do svn rm --quiet "$gone"; done
           svn copy --quiet trunk "tags/$VERSION"
           echo "Changes for $VERSION:"
-          svn status | sed 's/^/  /' | head -200
-          echo "Total changed paths: $(svn status | wc -l)"
+          svn status > ../svn-changes.txt
+          sed 's/^/  /' ../svn-changes.txt | sed -n '1,200p'
+          echo "Total changed paths: $(wc -l < ../svn-changes.txt)"
 
       - name: Commit to WordPress.org
         if: env.DRY_RUN != 'true'
