@@ -42,18 +42,59 @@ class QRAuthClient {
 	private string $user_agent;
 
 	/**
+	 * The app's client id, or '' when not configured.
+	 *
+	 * @var string
+	 */
+	private string $client_id = '';
+
+	/**
+	 * The app's client secret, or '' when not configured.
+	 *
+	 * @var string
+	 */
+	private string $client_secret = '';
+
+	/**
 	 * Construct a new client.
 	 *
-	 * @param string $base_url   Pre-sanitised base URL. Trailing slash is tolerated.
-	 * @param string $wp_version The host WordPress version, for the User-Agent header.
+	 * @param string $base_url      Pre-sanitised base URL. Trailing slash is tolerated.
+	 * @param string $wp_version    The host WordPress version, for the User-Agent header.
+	 * @param string $client_id     The app's client id. Sent with verify-result when the secret is set too.
+	 * @param string $client_secret The app's client secret.
 	 */
-	public function __construct( string $base_url, string $wp_version ) {
-		$this->base_url   = rtrim( $base_url, '/' );
-		$this->user_agent = sprintf(
+	public function __construct( string $base_url, string $wp_version, string $client_id = '', string $client_secret = '' ) {
+		$this->client_id     = $client_id;
+		$this->client_secret = $client_secret;
+		$this->base_url      = rtrim( $base_url, '/' );
+		$this->user_agent    = sprintf(
 			'qrauth-psl/%s; WordPress/%s',
 			defined( 'QRAUTH_PSL_VERSION' ) ? QRAUTH_PSL_VERSION : '0.0.0',
 			$wp_version
 		);
+	}
+
+	/**
+	 * Headers for a verify-result call.
+	 *
+	 * The app's credentials are sent when both are configured: QRAuth then
+	 * answers `valid` only for a session that belongs to this app, so an
+	 * approval made for a different site cannot be replayed against this one.
+	 * A client id on its own is public and is not sent as a credential.
+	 *
+	 * @return array<string, string>
+	 */
+	private function request_headers(): array {
+		$headers = array(
+			'Content-Type' => 'application/json',
+			'Accept'       => 'application/json',
+			'User-Agent'   => $this->user_agent,
+		);
+		if ( '' !== $this->client_id && '' !== $this->client_secret ) {
+			// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- HTTP Basic auth.
+			$headers['Authorization'] = 'Basic ' . base64_encode( $this->client_id . ':' . $this->client_secret );
+		}
+		return $headers;
 	}
 
 	/**
@@ -71,11 +112,7 @@ class QRAuthClient {
 				'timeout'     => 10,
 				'redirection' => 0,
 				'sslverify'   => true,
-				'headers'     => array(
-					'Content-Type' => 'application/json',
-					'Accept'       => 'application/json',
-					'User-Agent'   => $this->user_agent,
-				),
+				'headers'     => $this->request_headers(),
 				'body'        => wp_json_encode(
 					array(
 						'sessionId' => $session_id,

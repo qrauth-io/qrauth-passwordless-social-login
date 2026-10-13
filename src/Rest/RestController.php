@@ -364,7 +364,9 @@ final class RestController {
 		$options = Options::all();
 		return new QRAuthClient(
 			$options['tenant_url'],
-			function_exists( 'get_bloginfo' ) ? (string) get_bloginfo( 'version' ) : 'unknown'
+			function_exists( 'get_bloginfo' ) ? (string) get_bloginfo( 'version' ) : 'unknown',
+			$options['client_id'],
+			$options['client_secret']
 		);
 	}
 

@@ -52,7 +52,7 @@ The vendored web component (`assets/js/qrauth-components.js`) is served from you
 The compiled bundle at `assets/js/qrauth-components.js` carries the following banner header at the top of the file:
 
     /*!
-         * @qrauth/web-components v0.4.2
+     * @qrauth/web-components v0.4.2
      * Vendored by qrauth-passwordless-social-login. Do not edit by hand.
      *
      * Source:  https://github.com/qrauth-io/qrauth/tree/main/packages/web-components
