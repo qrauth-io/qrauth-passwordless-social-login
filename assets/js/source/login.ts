@@ -1,8 +1,8 @@
 /*!
- * @qrauth/web-components v0.4.1 — packages/web-components/src/login.ts
+ * @qrauth/web-components v0.4.2 — packages/web-components/src/login.ts
  * Vendored unminified source. Do not edit by hand.
  *
- * Upstream: https://github.com/qrauth-io/qrauth/blob/1e20c575e8963e00eaa7e6aeeae9518bd6a5ed0f/packages/web-components/src/login.ts
+ * Upstream: https://github.com/qrauth-io/qrauth/blob/f4113899b4b88a3ef0195a891f824267636a41ec/packages/web-components/src/login.ts
  * License:  MIT
  * npm:      https://www.npmjs.com/package/@qrauth/web-components
  *
@@ -10,7 +10,7 @@
  * (human-readable source for compiled assets). Not loaded at runtime —
  * only the IIFE bundle at assets/js/qrauth-components.js is enqueued.
  */
-import { QRAuthElement } from './base.js';
+import { CODE_VERIFIER_HEADER, QRAuthElement, safeRedirectTarget } from './base.js';
 import { qrToSvg } from './utils/qr-svg.js';
 
 // Same shield SVG as the browser SDK
@@ -77,8 +77,14 @@ interface PollResponse {
  *   theme                 — "light" (default) | "dark"
  *   base-url              — API base URL (default: https://qrauth.io)
  *   scopes                — Space-separated scopes (default: "identity")
- *   redirect-url          — Optional redirect after successful auth
- *   on-auth               — Name of a global callback function to call on success
+ *   redirect-url          — Optional redirect after successful auth. Only an
+ *                           http(s) URL or a relative URL is followed; any
+ *                           other scheme is ignored with a console warning.
+ *   on-auth               — Name of a function on `window` to call on success
+ *                           with the session result. It is looked up by name
+ *                           and called, so set it only from your own markup,
+ *                           never from user input. The `qrauth:authenticated`
+ *                           event carries the same data and needs no global.
  *   display               — "button" (default) | "inline"
  *   animated              — If present, enables subtle QR pulse animation
  *   force-mode            — "mobile" | "desktop" | "auto" (default "auto").
@@ -323,7 +329,6 @@ export class QRAuthLogin extends QRAuthElement {
     qrUrl?: string;
     sessionId?: string;
     timerHtml?: string;
-    errorMessage?: string;
   }): string {
     switch (status) {
       case 'idle':
@@ -399,7 +404,7 @@ export class QRAuthLogin extends QRAuthElement {
           <div class="state-error">
             <div class="error-icon">&#9888;</div>
             <h3>Something went wrong</h3>
-            <p class="subtitle">${data?.errorMessage ?? 'Failed to start authentication.'}</p>
+            <p class="subtitle">Failed to start authentication.</p>
             <button class="retry-btn" id="retry-btn">Try again</button>
           </div>
         `;
@@ -843,10 +848,22 @@ export class QRAuthLogin extends QRAuthElement {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unexpected error';
       this._status = 'error';
-      this._updateBody(this._bodyForStatus('error', { errorMessage: message }));
+      this._updateBody(this._bodyForStatus('error'));
+      // Server-supplied text: set as text, never as HTML.
+      this.setErrorText(message);
       this._bindModalButtons();
       this.emit('qrauth:error', { message });
     }
+  }
+
+  /** The scan was approved but the API returned no identity for it. */
+  private _failWithoutIdentity(): void {
+    const message = 'Sign-in could not be confirmed. Please try again.';
+    this._status = 'error';
+    this._updateBody(this._bodyForStatus('error'));
+    this.setErrorText(message);
+    this._bindModalButtons();
+    this.emit('qrauth:error', { message });
   }
 
   private _retry(): void {
@@ -882,15 +899,14 @@ export class QRAuthLogin extends QRAuthElement {
     const poll = async () => {
       if (!this._sessionId) return; // component was reset
 
-      let url = `${this.baseUrl}/api/v1/auth-sessions/${sessionId}`;
-      if (this._codeVerifier) {
-        url += `?code_verifier=${encodeURIComponent(this._codeVerifier)}`;
-      }
+      const url = `${this.baseUrl}/api/v1/auth-sessions/${sessionId}`;
+      // The PKCE verifier goes in a header: a query string ends up in proxy
+      // and server access logs.
+      const headers: Record<string, string> = { 'X-Client-Id': this.tenant };
+      if (this._codeVerifier) headers[CODE_VERIFIER_HEADER] = this._codeVerifier;
 
       try {
-        const res = await fetch(url, {
-          headers: { 'X-Client-Id': this.tenant },
-        });
+        const res = await fetch(url, { headers });
         const data = await res.json() as PollResponse;
         errorCount = 0;
         interval = 2000;
@@ -938,6 +954,10 @@ export class QRAuthLogin extends QRAuthElement {
 
       case 'APPROVED': {
         this._clearTimers();
+        if (this.isApprovalWithoutIdentity(!!this._codeVerifier, data)) {
+          this._failWithoutIdentity();
+          break;
+        }
         this._updateBody(this._bodyForStatus('APPROVED'));
         this._bindModalButtons();
         this.emit('qrauth:authenticated', {
@@ -947,17 +967,15 @@ export class QRAuthLogin extends QRAuthElement {
         });
 
         // Call the on-auth global callback if set
-        const callbackName = this.onAuth;
-        if (callbackName) {
-          const globalCallback = (window as unknown as Record<string, unknown>)[callbackName];
-          if (typeof globalCallback === 'function') {
-            (globalCallback as (d: unknown) => void)(data);
-          }
-        }
+        this.callGlobal(this.onAuth, data);
 
         // Redirect if configured
-        if (this.redirectUrl) {
-          setTimeout(() => { window.location.href = this.redirectUrl!; }, 1500);
+        const redirectTarget = safeRedirectTarget(this.redirectUrl, window.location.href);
+        if (this.redirectUrl && !redirectTarget) {
+          console.warn('[qrauth-login] redirect-url ignored: only http(s) and relative URLs are followed.');
+        }
+        if (redirectTarget) {
+          setTimeout(() => this.navigate(redirectTarget), 1500);
         } else if (this.display === 'button') {
           // Auto-close modal after success animation
           setTimeout(() => this._closeModal(), 2200);

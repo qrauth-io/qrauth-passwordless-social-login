@@ -1,8 +1,8 @@
 /*!
- * @qrauth/web-components v0.4.1 — packages/web-components/src/twofa.ts
+ * @qrauth/web-components v0.4.2 — packages/web-components/src/twofa.ts
  * Vendored unminified source. Do not edit by hand.
  *
- * Upstream: https://github.com/qrauth-io/qrauth/blob/1e20c575e8963e00eaa7e6aeeae9518bd6a5ed0f/packages/web-components/src/twofa.ts
+ * Upstream: https://github.com/qrauth-io/qrauth/blob/f4113899b4b88a3ef0195a891f824267636a41ec/packages/web-components/src/twofa.ts
  * License:  MIT
  * npm:      https://www.npmjs.com/package/@qrauth/web-components
  *
@@ -10,7 +10,7 @@
  * (human-readable source for compiled assets). Not loaded at runtime —
  * only the IIFE bundle at assets/js/qrauth-components.js is enqueued.
  */
-import { QRAuthElement } from './base.js';
+import { CODE_VERIFIER_HEADER, QRAuthElement } from './base.js';
 import { qrToSvg } from './utils/qr-svg.js';
 
 // Same shield SVG as login component
@@ -240,7 +240,6 @@ export class QRAuthTwoFA extends QRAuthElement {
   private _bodyForStatus(status: TwoFAStatus, data?: {
     qrUrl?: string;
     timerHtml?: string;
-    errorMessage?: string;
   }): string {
     const stepLabel = `
       <div class="step-label">
@@ -330,7 +329,7 @@ export class QRAuthTwoFA extends QRAuthElement {
           <div class="state-error">
             <div class="error-icon">&#9888;</div>
             <h3>Something went wrong</h3>
-            <p class="subtitle">${data?.errorMessage ?? 'Failed to start verification.'}</p>
+            <p class="subtitle">Failed to start verification.</p>
             <button class="retry-btn" id="retry-btn">Try again</button>
           </div>
         `;
@@ -715,7 +714,9 @@ export class QRAuthTwoFA extends QRAuthElement {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unexpected error';
       this._status = 'error';
-      this._updateBody(this._bodyForStatus('error', { errorMessage: message }));
+      this._updateBody(this._bodyForStatus('error'));
+      // Server-supplied text: set as text, never as HTML.
+      this.setErrorText(message);
       this._bindBodyEvents();
       this.emit('qrauth:error', { message });
     }
@@ -746,15 +747,14 @@ export class QRAuthTwoFA extends QRAuthElement {
     const poll = async () => {
       if (!this._sessionId) return; // component was reset
 
-      let url = `${this.baseUrl}/api/v1/auth-sessions/${sessionId}`;
-      if (this._codeVerifier) {
-        url += `?code_verifier=${encodeURIComponent(this._codeVerifier)}`;
-      }
+      const url = `${this.baseUrl}/api/v1/auth-sessions/${sessionId}`;
+      // The PKCE verifier goes in a header: a query string ends up in proxy
+      // and server access logs.
+      const headers: Record<string, string> = { 'X-Client-Id': this.tenant };
+      if (this._codeVerifier) headers[CODE_VERIFIER_HEADER] = this._codeVerifier;
 
       try {
-        const res = await fetch(url, {
-          headers: { 'X-Client-Id': this.tenant },
-        });
+        const res = await fetch(url, { headers });
         const data = await res.json() as PollResponse;
         errorCount = 0;
         interval = 2000;
@@ -801,6 +801,15 @@ export class QRAuthTwoFA extends QRAuthElement {
 
       case 'APPROVED': {
         this._clearTimers();
+        if (this.isApprovalWithoutIdentity(!!this._codeVerifier, data)) {
+          // Approved, but the API returned no identity for it.
+          const message = 'Verification could not be confirmed. Please try again.';
+          this._status = 'error';
+          this._updateBody(this._bodyForStatus('error'));
+          this.setErrorText(message);
+          this.emit('qrauth:error', { message });
+          break;
+        }
         this._updateBody(this._bodyForStatus('APPROVED'));
         this.emit('qrauth:verified', {
           sessionId: data?.sessionId,

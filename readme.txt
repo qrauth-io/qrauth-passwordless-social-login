@@ -52,7 +52,7 @@ The vendored web component (`assets/js/qrauth-components.js`) is served from you
 The compiled bundle at `assets/js/qrauth-components.js` carries the following banner header at the top of the file:
 
     /*!
-     * @qrauth/web-components v0.4.1
+         * @qrauth/web-components v0.4.2
      * Vendored by qrauth-passwordless-social-login. Do not edit by hand.
      *
      * Source:  https://github.com/qrauth-io/qrauth/tree/main/packages/web-components
@@ -75,7 +75,7 @@ The PHP and `assets/js/qrauth-adapter.js` shipped in the plugin ZIP are non-mini
 The vendored file `assets/js/qrauth-components.js` is a pinned production build of the public `@qrauth/web-components` library. The non-compiled source for that library is openly available:
 
 * Source repository: https://github.com/qrauth-io/qrauth/tree/main/packages/web-components (MIT-licensed)
-* npm release: https://www.npmjs.com/package/@qrauth/web-components — pinned to v0.4.1, sha512 in `package.json` under the `qrauth.webComponentsIntegrity` key
+* npm release: https://www.npmjs.com/package/@qrauth/web-components — pinned to v0.4.2, sha512 in `package.json` under the `qrauth.webComponentsIntegrity` key
 * Build instructions for the upstream library: https://github.com/qrauth-io/qrauth/blob/main/BUILDING.md
 
 To regenerate the vendored bundle from the pinned npm release, clone the plugin source repository linked above and run from its root:

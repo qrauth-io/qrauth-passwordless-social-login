@@ -1,8 +1,8 @@
 /*!
- * @qrauth/web-components v0.4.1 — packages/web-components/src/base.ts
+ * @qrauth/web-components v0.4.2 — packages/web-components/src/base.ts
  * Vendored unminified source. Do not edit by hand.
  *
- * Upstream: https://github.com/qrauth-io/qrauth/blob/1e20c575e8963e00eaa7e6aeeae9518bd6a5ed0f/packages/web-components/src/base.ts
+ * Upstream: https://github.com/qrauth-io/qrauth/blob/f4113899b4b88a3ef0195a891f824267636a41ec/packages/web-components/src/base.ts
  * License:  MIT
  * npm:      https://www.npmjs.com/package/@qrauth/web-components
  *
@@ -21,6 +21,28 @@
  * Exported for documentation and test mocks.
  */
 export const MOBILE_MEDIA_QUERY = '(pointer: coarse) and (hover: none)';
+
+/** Header the API reads the PKCE verifier from when an auth session is polled. */
+export const CODE_VERIFIER_HEADER = 'X-QRAuth-Code-Verifier';
+
+/**
+ * Where `redirect-url` may send the browser: an http(s) URL, or a relative
+ * one resolved against the current page. Anything that does not resolve to
+ * http(s), `javascript:` and `data:` in particular, is refused. Returns the
+ * absolute URL to navigate to, or null. This is a scheme check, not an
+ * origin check: an absolute URL on another site is allowed, as documented.
+ */
+export function safeRedirectTarget(raw: string | null | undefined, pageUrl: string): string | null {
+  const value = (raw ?? '').trim();
+  if (!value) return null;
+  let target: URL;
+  try {
+    target = new URL(value, pageUrl);
+  } catch {
+    return null;
+  }
+  return target.protocol === 'https:' || target.protocol === 'http:' ? target.href : null;
+}
 
 export abstract class QRAuthElement extends HTMLElement {
   protected shadow: ShadowRoot;
@@ -153,6 +175,50 @@ export abstract class QRAuthElement extends HTMLElement {
   }
 
   // --- Event dispatch ---
+  /**
+   * Put a message into the rendered error state as text. The message can come
+   * from the API, so it is never parsed as HTML; the template only supplies
+   * the element and its default wording.
+   */
+  protected setErrorText(message: string | null | undefined): void {
+    if (!message) return;
+    const target = this.shadow.querySelector('.state-error .subtitle');
+    if (target) target.textContent = message;
+  }
+
+  /**
+   * True when a PKCE-bound session came back APPROVED without the user: the
+   * API did not accept the verifier (an API older than the verifier header
+   * ignores it). There is no identity to hand to the page, so this must not
+   * be reported as a successful sign-in.
+   */
+  protected isApprovalWithoutIdentity(sentVerifier: boolean, data: { user?: unknown } | undefined): boolean {
+    return sentVerifier && !data?.user;
+  }
+
+  /**
+   * Call the function named by an `on-*` attribute. Only an own property of
+   * `window` is called, not an inherited one (`constructor`, `toString`), and
+   * a throwing callback does not stop the component. Built-ins such as
+   * `alert` are own properties of `window` in browsers, so the attribute must
+   * still come from the embedding page's own markup, as documented.
+   */
+  protected callGlobal(name: string | null, payload: unknown): void {
+    if (!name || !Object.prototype.hasOwnProperty.call(window, name)) return;
+    const callback = (window as unknown as Record<string, unknown>)[name];
+    if (typeof callback !== 'function') return;
+    try {
+      (callback as (d: unknown) => void).call(window, payload);
+    } catch (err) {
+      console.error(`[qrauth] ${name} threw:`, err);
+    }
+  }
+
+  /** Leave the page. Separate so it can be observed in tests. */
+  protected navigate(url: string): void {
+    window.location.href = url;
+  }
+
   protected emit(name: string, detail?: unknown): void {
     this.dispatchEvent(new CustomEvent(name, {
       bubbles: true,
