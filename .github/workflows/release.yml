@@ -11,11 +11,25 @@ name: Release
 #      the same tarball and uploads it as a workflow artifact you can
 #      download from the run page. Useful for pre-release builds before a
 #      tag exists.
+#
+# Either way, a tagged version is also published to the WordPress.org plugin
+# directory (job `wporg`): on a tag push automatically, and on a manual run
+# when a tag is given in the `tag` input. A manual run is a dry run unless
+# `dry_run` is unticked: it shows what would be committed and commits nothing.
 on:
   push:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to publish to WordPress.org (e.g. v0.1.24). Leave empty to only build the ZIP.'
+        required: false
+        default: ''
+      dry_run:
+        description: 'WordPress.org: show the changes without committing'
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -26,6 +40,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          # A manual run can build an existing tag; otherwise the pushed ref.
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -76,6 +93,14 @@ jobs:
             --exclude=".gitkeep" \
             ./ ./build/qrauth-passwordless-social-login/
 
+      - name: Keep the plugin tree for the WordPress.org job
+        uses: actions/upload-artifact@v7
+        with:
+          name: plugin-tree
+          path: build/qrauth-passwordless-social-login
+          include-hidden-files: true
+          retention-days: 1
+
       - name: Create ZIP
         working-directory: ./build
         run: |
@@ -96,3 +121,75 @@ jobs:
           name: qrauth-passwordless-social-login
           path: qrauth-passwordless-social-login.zip
           retention-days: 14
+
+  wporg:
+    name: Publish to WordPress.org
+    # The same tree that went into the ZIP is committed to the plugin
+    # directory's SVN: trunk is replaced with it and tags/<version> is created
+    # from trunk. /assets (banners, icons, screenshots) is never touched.
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.tag != ''
+    runs-on: ubuntu-latest
+    env:
+      SLUG: qrauth-passwordless-social-login
+      TAG: ${{ inputs.tag || github.ref_name }}
+      # A tag push publishes. A manual run publishes only when dry_run is unticked.
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}
+    steps:
+      - name: Download the plugin tree
+        uses: actions/download-artifact@v8
+        with:
+          name: plugin-tree
+          path: tree
+
+      - name: Check the tree is the tagged version
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::tag '$TAG' is not vX.Y.Z"; exit 1; }
+          grep -qE "^ \* Version: +${VERSION//./\\.}$" "tree/$SLUG.php" \
+            || { echo "::error::plugin header Version is not $VERSION"; exit 1; }
+          grep -qE "^Stable tag: ${VERSION//./\\.}$" tree/readme.txt \
+            || { echo "::error::readme.txt Stable tag is not $VERSION"; exit 1; }
+
+      - name: Install Subversion
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq subversion rsync
+
+      - name: Prepare the SVN working copy
+        run: |
+          set -euo pipefail
+          svn checkout --quiet --depth immediates "https://plugins.svn.wordpress.org/$SLUG" svn
+          cd svn
+          svn update --quiet --set-depth infinity trunk
+          svn update --quiet --set-depth immediates tags
+          if [ -e "tags/$VERSION" ]; then
+            echo "::error::tags/$VERSION already exists on WordPress.org; a published version is never overwritten."
+            exit 1
+          fi
+          rsync -rc --delete --exclude='.svn' "../tree/" trunk/
+          svn add --force --quiet trunk
+          # Files that left the tree are removed from trunk.
+          svn status trunk | grep '^!' | sed 's/^! *//' | while IFS= read -r gone; do svn rm --quiet "$gone"; done
+          svn copy --quiet trunk "tags/$VERSION"
+          echo "Changes for $VERSION:"
+          svn status | sed 's/^/  /' | head -200
+          echo "Total changed paths: $(svn status | wc -l)"
+
+      - name: Commit to WordPress.org
+        if: env.DRY_RUN != 'true'
+        env:
+          SVN_USERNAME: ${{ secrets.WPORG_SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.WPORG_SVN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          cd svn
+          svn commit --quiet --non-interactive --no-auth-cache \
+            --username "$SVN_USERNAME" --password "$SVN_PASSWORD" \
+            -m "Release $VERSION"
+          echo "Published $VERSION to WordPress.org."
+
+      - name: Dry run
+        if: env.DRY_RUN == 'true'
+        run: echo "Dry run. Nothing was committed to WordPress.org."
+
