@@ -1,8 +1,8 @@
 /*!
- * @qrauth/web-components v0.4.1 — packages/web-components/src/utils/qr-svg.ts
+ * @qrauth/web-components v0.4.2 — packages/web-components/src/utils/qr-svg.ts
  * Vendored unminified source. Do not edit by hand.
  *
- * Upstream: https://github.com/qrauth-io/qrauth/blob/1e20c575e8963e00eaa7e6aeeae9518bd6a5ed0f/packages/web-components/src/utils/qr-svg.ts
+ * Upstream: https://github.com/qrauth-io/qrauth/blob/f4113899b4b88a3ef0195a891f824267636a41ec/packages/web-components/src/utils/qr-svg.ts
  * License:  MIT
  * npm:      https://www.npmjs.com/package/@qrauth/web-components
  *

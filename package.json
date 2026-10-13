@@ -10,11 +10,11 @@
     "build": "npm run build:assets"
   },
   "qrauth": {
-    "webComponentsVersion": "0.4.1",
-    "webComponentsIntegrity": "sha512-UBNOir5RwDrXhoW3zMGkh2bNOgsCDqG4lT/w9PnJjlkeMGNP0GWUFL9UD8ZSswg7HTIQsXilOV/+P5z30dOtOw==",
+    "webComponentsVersion": "0.4.2",
+    "webComponentsIntegrity": "sha512-PMWvSpwS5DRMgSq5za5GnKqjCVfHxQK8bVUhQLSOuExRMaASy3+vgW60+9oYxGjzMjD10igOMXG9HUdkbY1zYA==",
     "webComponentsSourceRepo": "qrauth-io/qrauth",
     "webComponentsSourcePath": "packages/web-components/src",
-    "webComponentsSourceCommit": "1e20c575e8963e00eaa7e6aeeae9518bd6a5ed0f"
+    "webComponentsSourceCommit": "f4113899b4b88a3ef0195a891f824267636a41ec"
   },
   "engines": {
     "node": ">=18"

@@ -168,6 +168,97 @@ final class QRAuthClientTest extends TestCase {
 	}
 
 	/**
+	 * With the app's credentials configured, verify-result is called with
+	 * them, so QRAuth answers `valid` only for this site's own sessions.
+	 */
+	public function test_sends_app_credentials_when_configured(): void {
+		$sent = $this->capture_request_headers();
+
+		$client = new QRAuthClient( 'https://qrauth.io', '6.4', 'qrauth_app_abc', 's3cret' );
+		$client->verify_result( 'sess-1', 'sig-1' );
+
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- HTTP Basic auth.
+		$this->assertSame( 'Basic ' . base64_encode( 'qrauth_app_abc:s3cret' ), $sent->headers['Authorization'] ?? null );
+		$this->assertSame( 'application/json', $sent->headers['Content-Type'] );
+	}
+
+	/**
+	 * Without both halves of the credentials, no Authorization header is
+	 * sent: a client id alone proves nothing and a half-built header would
+	 * be rejected upstream.
+	 *
+	 * @dataProvider incomplete_credentials
+	 *
+	 * @param string $client_id     Configured client id.
+	 * @param string $client_secret Configured client secret.
+	 */
+	public function test_sends_no_credentials_when_incomplete( string $client_id, string $client_secret ): void {
+		$sent = $this->capture_request_headers();
+
+		$client = new QRAuthClient( 'https://qrauth.io', '6.4', $client_id, $client_secret );
+		$client->verify_result( 'sess-1', 'sig-1' );
+
+		$this->assertArrayNotHasKey( 'Authorization', $sent->headers );
+	}
+
+	/**
+	 * Credential pairs that must not produce an Authorization header.
+	 *
+	 * @return array<string, array{0:string,1:string}>
+	 */
+	public function incomplete_credentials(): array {
+		return array(
+			'neither'     => array( '', '' ),
+			'id only'     => array( 'qrauth_app_abc', '' ),
+			'secret only' => array( '', 's3cret' ),
+		);
+	}
+
+	/**
+	 * The two-argument constructor still works and sends no credentials.
+	 */
+	public function test_two_argument_constructor_sends_no_credentials(): void {
+		$sent = $this->capture_request_headers();
+
+		$client = new QRAuthClient( 'https://qrauth.io', '6.4' );
+		$client->verify_result( 'sess-1', 'sig-1' );
+
+		$this->assertArrayNotHasKey( 'Authorization', $sent->headers );
+	}
+
+	/**
+	 * Stub a valid 200 response and record the headers of the request.
+	 *
+	 * @return \stdClass Object whose `headers` property holds the sent headers.
+	 */
+	private function capture_request_headers(): \stdClass {
+		$sent          = new \stdClass();
+		$sent->headers = array();
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.json_encode_json_encode -- fixture string for the stub.
+		$body = json_encode(
+			array(
+				'valid'   => false,
+				'session' => array(
+					'id'     => 'sess-1',
+					'status' => 'PENDING',
+					'user'   => null,
+				),
+			)
+		);
+		$this->stub_200_body( $body );
+		Functions\when( 'wp_remote_post' )->alias(
+			static function ( $url, $args ) use ( $sent, $body ) {
+				$sent->headers = $args['headers'];
+				return array(
+					'response' => array( 'code' => 200 ),
+					'body'     => $body,
+				);
+			}
+		);
+		return $sent;
+	}
+
+	/**
 	 * Stub `wp_remote_post` returning HTTP 200 with the given body.
 	 *
 	 * @param string $body Response body.

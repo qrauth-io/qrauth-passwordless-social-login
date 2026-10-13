@@ -1,8 +1,8 @@
 /*!
- * @qrauth/web-components v0.4.1 — packages/web-components/src/ephemeral.ts
+ * @qrauth/web-components v0.4.2 — packages/web-components/src/ephemeral.ts
  * Vendored unminified source. Do not edit by hand.
  *
- * Upstream: https://github.com/qrauth-io/qrauth/blob/1e20c575e8963e00eaa7e6aeeae9518bd6a5ed0f/packages/web-components/src/ephemeral.ts
+ * Upstream: https://github.com/qrauth-io/qrauth/blob/f4113899b4b88a3ef0195a891f824267636a41ec/packages/web-components/src/ephemeral.ts
  * License:  MIT
  * npm:      https://www.npmjs.com/package/@qrauth/web-components
  *
@@ -313,7 +313,6 @@ export class QRAuthEphemeral extends QRAuthElement {
   private _bodyForStatus(status: EphemeralStatus, data?: {
     claimUrl?: string;
     timerHtml?: string;
-    errorMessage?: string;
     useCount?: number;
     maxUses?: number;
   }): string {
@@ -338,8 +337,9 @@ export class QRAuthEphemeral extends QRAuthElement {
       case 'active': {
         const qrSvg = qrToSvg(data?.claimUrl ?? '', 440);
 
-        const useCount = data?.useCount ?? 0;
-        const maxUses = data?.maxUses ?? 1;
+        // From the API, and interpolated below: numbers only.
+        const useCount = Math.trunc(Number(data?.useCount ?? 0)) || 0;
+        const maxUses = Math.trunc(Number(data?.maxUses ?? 1)) || 1;
         const isMultiUse = maxUses > 1;
         const useBadge = isMultiUse
           ? `<div class="use-badge">${useCount}/${maxUses} claimed</div>`
@@ -391,7 +391,7 @@ export class QRAuthEphemeral extends QRAuthElement {
           <div class="state-error">
             <div class="error-icon">&#9888;</div>
             <h3>Something went wrong</h3>
-            <p class="subtitle">${data?.errorMessage ?? 'Failed to create ephemeral session.'}</p>
+            <p class="subtitle">Failed to create ephemeral session.</p>
             <button class="retry-btn" id="retry-btn">Try again</button>
           </div>
         `;
@@ -683,7 +683,9 @@ export class QRAuthEphemeral extends QRAuthElement {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unexpected error';
       this._status = 'error';
-      this._updateBody(this._bodyForStatus('error', { errorMessage: message }));
+      this._updateBody(this._bodyForStatus('error'));
+      // Server-supplied text: set as text, never as HTML.
+      this.setErrorText(message);
       this._bindModalButtons();
       this.emit('qrauth:error', { message });
     }
