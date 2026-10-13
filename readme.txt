@@ -4,7 +4,7 @@ Tags: login, passwordless, qr code, social login, authentication
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.2
-Stable tag: 0.1.23
+Stable tag: 0.1.24
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -139,6 +139,10 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 4. The QRAuth dashboard at qrauth.io — where site operators generate the Client ID and Client Secret to paste into the plugin settings.
 
 == Changelog ==
+= 0.1.24 =
+* Security: bumped the vendored QRAuth web component to 0.4.2. Error messages returned by the QRAuth service are now shown as plain text and never interpreted as HTML, and the one-time PKCE verifier used while waiting for approval is sent in a request header instead of the request URL, which keeps it out of server access logs.
+* Security: the server-side verification call to QRAuth now sends your site's QRAuth app credentials. QRAuth then confirms a sign-in only when it was approved for your site's own app, so an approval made for a different site cannot be replayed against yours. No settings change is needed: the credentials are the Client ID and Client Secret already saved for the plugin.
+
 = 0.1.23 =
 * Compatibility: confirmed working on WordPress 7.0 and bumped "Tested up to" accordingly. Verified on a clean 7.0 install — plugin activation, settings option, and the login-page widget injection all run without fatals or deprecation notices. No source-code changes.
 
@@ -230,6 +234,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 * Full i18n scaffolding (POT + Greek translation source).
 
 == Upgrade Notice ==
+
+= 0.1.24 =
+Security hardening: vendored web component 0.4.2 (plain-text error messages, verifier kept out of URLs) and app credentials on the server-side verification call. Recommended for all sites.
 
 = 0.1.23 =
 Confirmed compatible with WordPress 7.0. Documentation-only release — no source-code changes.
