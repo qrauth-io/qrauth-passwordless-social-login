@@ -27,6 +27,7 @@ defined( 'HOUR_IN_SECONDS' ) || define( 'HOUR_IN_SECONDS', 3600 );
 defined( 'DAY_IN_SECONDS' ) || define( 'DAY_IN_SECONDS', 86400 );
 defined( 'SITECOOKIEPATH' ) || define( 'SITECOOKIEPATH', '/' );
 defined( 'COOKIE_DOMAIN' ) || define( 'COOKIE_DOMAIN', '' );
+defined( 'YEAR_IN_SECONDS' ) || define( 'YEAR_IN_SECONDS', 31536000 );
 // phpcs:enable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound
 
 /**
@@ -75,12 +76,11 @@ final class LoginFlowTest extends TestCase {
 			array(
 				'oidc_client_id'     => 'wp-client',
 				'oidc_client_secret' => 'secret',
-				'oidc_issuer'        => 'https://id.qrauth.io',
 			)
 		);
 		Functions\when( 'rest_url' )->justReturn( 'https://site.test/wp-json/qrauth-psl/v1' );
 		Functions\when( 'wp_login_url' )->justReturn( 'https://site.test/wp-login.php' );
-		Functions\when( 'admin_url' )->justReturn( 'https://site.test/wp-admin/' );
+		Functions\when( 'admin_url' )->alias( static fn( $path = '' ) => 'https://site.test/wp-admin/' . $path );
 		Functions\when( 'is_ssl' )->justReturn( true );
 		Functions\when( 'wp_unslash' )->returnArg();
 		Functions\when( 'sanitize_text_field' )->returnArg();
@@ -119,6 +119,13 @@ final class LoginFlowTest extends TestCase {
 			}
 		);
 		Functions\when( 'wp_set_current_user' )->justReturn( null );
+		Functions\when( 'wp_parse_url' )->alias( 'parse_url' );
+		Functions\when( 'is_multisite' )->justReturn( false );
+		Functions\when( 'is_user_logged_in' )->justReturn( false );
+		Functions\when( 'get_current_user_id' )->justReturn( 0 );
+		Functions\when( 'is_wp_error' )->alias( static fn( $v ) => $v instanceof \WP_Error );
+		Functions\when( 'user_can' )->justReturn( false );
+		$_SERVER['REMOTE_ADDR'] = '203.0.113.7';
 		Functions\when( '__' )->returnArg();
 		Functions\when( 'get_userdata' )->alias(
 			static function ( $id ) {
@@ -156,6 +163,20 @@ final class LoginFlowTest extends TestCase {
 			$pairs[] = $k . '=' . $v;
 		}
 		return $url . ( str_contains( (string) $url, '?' ) ? '&' : '?' ) . implode( '&', $pairs );
+	}
+
+	/**
+	 * The one stored flow (ignores the per-IP start counter).
+	 *
+	 * @return array<string,mixed>
+	 */
+	private function stored_flow(): array {
+		foreach ( $this->transients as $key => $value ) {
+			if ( str_starts_with( $key, 'qrauth_psl_oidc_' ) ) {
+				return $value;
+			}
+		}
+		$this->fail( 'no stored flow' );
 	}
 
 	/**
@@ -212,9 +233,9 @@ final class LoginFlowTest extends TestCase {
 	 * @return string
 	 */
 	private function start( Provider $provider, string $redirect_to = '' ): string {
-		$_COOKIE[ LoginFlow::BINDING_COOKIE ] = self::BINDING;
-		$_GET                                 = '' !== $redirect_to ? array( 'redirect_to' => $redirect_to ) : array();
-		$location                             = $this->run_flow( $this->flow( $provider ) );
+		$_COOKIE[ LoginFlow::HOST_BINDING_COOKIE ] = self::BINDING;
+		$_GET                                      = '' !== $redirect_to ? array( 'redirect_to' => $redirect_to ) : array();
+		$location                                  = $this->run_flow( $this->flow( $provider ) );
 		parse_str( (string) parse_url( $location, PHP_URL_QUERY ), $query );
 		return (string) $query['state'];
 	}
@@ -223,7 +244,7 @@ final class LoginFlowTest extends TestCase {
 	 * Start sends pkce s256 state and nonce and stores only a binding hash.
 	 */
 	public function test_start_sends_pkce_s256_state_and_nonce_and_stores_only_a_binding_hash(): void {
-		$_COOKIE[ LoginFlow::BINDING_COOKIE ] = self::BINDING;
+		$_COOKIE[ LoginFlow::HOST_BINDING_COOKIE ] = self::BINDING;
 
 		$location = $this->run_flow( $this->flow( $this->provider() ) );
 
@@ -234,9 +255,10 @@ final class LoginFlowTest extends TestCase {
 		$this->assertSame( 'openid profile email', $query['scope'] );
 		$this->assertMatchesRegularExpression( '/^[A-Za-z0-9_-]{43}$/', $query['state'] );
 
-		$stored = array_values( $this->transients )[0];
+		$stored = $this->stored_flow();
 		$this->assertSame( hash( 'sha256', self::BINDING ), $stored['binding_hash'] );
 		$this->assertStringNotContainsString( self::BINDING, (string) json_encode( $this->transients ) );
+		$this->assertSame( 0, $stored['link_user_id'] );
 		$this->assertSame( $query['code_challenge'], IdToken::b64url_encode( hash( 'sha256', $stored['verifier'], true ) ) );
 		$this->assertSame( $query['nonce'], $stored['nonce'] );
 	}
@@ -247,16 +269,16 @@ final class LoginFlowTest extends TestCase {
 	public function test_start_drops_an_off_site_redirect_to(): void {
 		$this->start( $this->provider(), 'https://evil.example/' );
 
-		$this->assertSame( '', array_values( $this->transients )[0]['redirect_to'] );
+		$this->assertSame( '', $this->stored_flow()['redirect_to'] );
 	}
 
 	/**
 	 * Callback from another browser is refused and burns the state.
 	 */
 	public function test_callback_from_another_browser_is_refused_and_burns_the_state(): void {
-		$state                                = $this->start( $this->provider() );
-		$_COOKIE[ LoginFlow::BINDING_COOKIE ] = str_repeat( 'x', 43 );
-		$_GET                                 = array(
+		$state                                     = $this->start( $this->provider() );
+		$_COOKIE[ LoginFlow::HOST_BINDING_COOKIE ] = str_repeat( 'x', 43 );
+		$_GET                                      = array(
 			'code'  => 'c',
 			'state' => $state,
 		);
@@ -264,7 +286,7 @@ final class LoginFlowTest extends TestCase {
 		$location = $this->run_flow( $this->flow( $this->provider() ) );
 
 		$this->assertStringContainsString( 'qrauth_psl_error=state_invalid', $location );
-		$this->assertSame( array(), $this->transients );
+		$this->assertSame( array(), array_filter( $this->transients, static fn( $k ) => str_starts_with( $k, 'qrauth_psl_oidc_' ), ARRAY_FILTER_USE_KEY ) );
 		$this->assertNull( $this->signed_in );
 	}
 
@@ -273,7 +295,7 @@ final class LoginFlowTest extends TestCase {
 	 */
 	public function test_callback_without_the_binding_cookie_is_refused(): void {
 		$state = $this->start( $this->provider() );
-		unset( $_COOKIE[ LoginFlow::BINDING_COOKIE ] );
+		unset( $_COOKIE[ LoginFlow::HOST_BINDING_COOKIE ] );
 		$_GET = array(
 			'code'  => 'c',
 			'state' => $state,
@@ -327,8 +349,8 @@ final class LoginFlowTest extends TestCase {
 	 * Malformed state never reaches the transient store.
 	 */
 	public function test_malformed_state_never_reaches_the_transient_store(): void {
-		$_COOKIE[ LoginFlow::BINDING_COOKIE ] = self::BINDING;
-		$_GET                                 = array(
+		$_COOKIE[ LoginFlow::HOST_BINDING_COOKIE ] = self::BINDING;
+		$_GET                                      = array(
 			'code'  => 'c',
 			'state' => '../../x',
 		);
@@ -337,11 +359,13 @@ final class LoginFlowTest extends TestCase {
 	}
 
 	/**
-	 * Success signs in the linked user and returns to the stored page.
+	 * Run a callback that carries a valid, signed ID token for a linked user.
+	 *
+	 * @return string Where the flow redirected.
 	 */
-	public function test_success_signs_in_the_linked_user_and_returns_to_the_stored_page(): void {
+	private function sign_in_with_valid_token(): string {
 		$state = $this->start( $this->provider(), '/my-account/' );
-		$nonce = array_values( $this->transients )[0]['nonce'];
+		$nonce = $this->stored_flow()['nonce'];
 
 		$key     = openssl_pkey_new(
 			array(
@@ -401,10 +425,67 @@ final class LoginFlowTest extends TestCase {
 			'state' => $state,
 		);
 
-		$location = $this->run_flow( $this->flow( $provider ) );
+		return $this->run_flow( $this->flow( $provider ) );
+	}
+
+	/**
+	 * A valid callback signs in the linked user and returns to the stored page.
+	 */
+	public function test_success_signs_in_the_linked_user_and_returns_to_the_stored_page(): void {
+		$location = $this->sign_in_with_valid_token();
 
 		$this->assertSame( '/my-account/', $location );
 		$this->assertSame( 42, $this->signed_in );
 		$this->assertContains( 'wp_login', array_column( $this->actions, 0 ) );
+	}
+
+	/**
+	 * Starts beyond the per-IP limit are refused before anything is stored.
+	 */
+	public function test_start_is_rate_limited_per_ip(): void {
+		$this->transients[ 'qrauth_psl_rl_oidc_' . md5( '203.0.113.7' ) ] = 20;
+
+		$this->assertStringContainsString( 'qrauth_psl_error=rate_limited', $this->run_flow( $this->flow( $this->provider() ) ) );
+	}
+
+	/**
+	 * A link start needs a signed-in user and a valid nonce.
+	 */
+	public function test_link_intent_requires_a_signed_in_user_and_nonce(): void {
+		Functions\when( 'wp_verify_nonce' )->justReturn( false );
+		$_GET = array(
+			'intent'   => 'link',
+			'_wpnonce' => 'forged',
+		);
+
+		$this->assertStringContainsString( 'qrauth_psl_error=link_session', $this->run_flow( $this->flow( $this->provider() ) ) );
+	}
+
+	/**
+	 * A link start stores the signed-in user so the callback links that user only.
+	 */
+	public function test_link_intent_records_the_signed_in_user(): void {
+		Functions\when( 'is_user_logged_in' )->justReturn( true );
+		Functions\when( 'get_current_user_id' )->justReturn( 5 );
+		Functions\when( 'wp_verify_nonce' )->justReturn( 1 );
+		$_COOKIE[ LoginFlow::HOST_BINDING_COOKIE ] = self::BINDING;
+		$_GET                                      = array(
+			'intent'   => 'link',
+			'_wpnonce' => 'ok',
+		);
+
+		$this->run_flow( $this->flow( $this->provider() ) );
+
+		$this->assertSame( 5, $this->stored_flow()['link_user_id'] );
+		$this->assertSame( 'https://site.test/wp-admin/profile.php', $this->stored_flow()['redirect_to'] );
+	}
+
+	/**
+	 * An account-state plugin refusing the user stops the sign-in.
+	 */
+	public function test_account_state_filter_can_refuse_the_sign_in(): void {
+		Monkey\Filters\expectApplied( 'wp_authenticate_user' )->andReturn( new \WP_Error( 'pending_approval', 'x' ) );
+		$this->assertStringContainsString( 'account_blocked', $this->sign_in_with_valid_token() );
+		$this->assertNull( $this->signed_in );
 	}
 }

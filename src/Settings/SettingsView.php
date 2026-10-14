@@ -124,23 +124,6 @@ final class SettingsView {
 							</p>
 						</td>
 					</tr>
-					<tr>
-						<th scope="row">
-							<label for="qrauth_psl_oidc_issuer"><?php esc_html_e( 'Issuer', 'qrauth-passwordless-social-login' ); ?></label>
-						</th>
-						<td>
-							<input type="url" id="qrauth_psl_oidc_issuer" name="qrauth_psl_settings[oidc_issuer]" value="<?php echo esc_attr( $options['oidc_issuer'] ); ?>" class="regular-text code" />
-							<p class="description">
-								<?php
-								printf(
-									/* translators: %s: the default issuer URL. */
-									esc_html__( 'Leave this set to %s. Only an https:// URL with no path is accepted.', 'qrauth-passwordless-social-login' ),
-									'<code>' . esc_html( Options::DEFAULT_OIDC_ISSUER ) . '</code>'
-								);
-								?>
-							</p>
-						</td>
-					</tr>
 				</table>
 
 				<h2><?php esc_html_e( 'Embedded widget (legacy)', 'qrauth-passwordless-social-login' ); ?></h2>

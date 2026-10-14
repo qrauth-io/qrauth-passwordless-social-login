@@ -47,9 +47,31 @@ final class LoginFlow {
 	public const ERROR_ARG = 'qrauth_psl_error';
 
 	/**
-	 * Browser-binding cookie name.
+	 * Browser-binding cookie name on plain http (local development).
 	 */
 	public const BINDING_COOKIE = 'qrauth_psl_oidc_binding';
+
+	/**
+	 * Browser-binding cookie name on https. The `__Host-` prefix makes the
+	 * browser refuse it from a sibling subdomain or a plain-http response,
+	 * so it cannot be planted (cookie tossing) to fix someone's login.
+	 */
+	public const HOST_BINDING_COOKIE = '__Host-qrauth_psl_oidc';
+
+	/**
+	 * Nonce action for linking a signed-in user from the profile page.
+	 */
+	public const LINK_NONCE_ACTION = 'qrauth_psl_oidc_link';
+
+	/**
+	 * Query arg set on profile.php after a successful link.
+	 */
+	public const LINKED_ARG = 'qrauth_psl_linked';
+
+	/**
+	 * Flow starts allowed per IP per FLOW_TTL (each start stores a transient).
+	 */
+	private const START_LIMIT = 20;
 
 	/**
 	 * Lifetime of a started flow (and its binding cookie) in seconds.
@@ -80,6 +102,7 @@ final class LoginFlow {
 	public function boot(): void {
 		add_action( 'login_form_' . self::ACTION, array( $this, 'handle' ) );
 		add_filter( 'wp_login_errors', array( $this, 'show_error' ) );
+		add_action( 'admin_notices', array( $this, 'show_linked_notice' ) );
 	}
 
 	/**
@@ -112,6 +135,21 @@ final class LoginFlow {
 	}
 
 	/**
+	 * URL a signed-in user follows from their profile to link QRAuth.
+	 *
+	 * @return string
+	 */
+	public static function link_url(): string {
+		return add_query_arg(
+			array(
+				'intent'   => 'link',
+				'_wpnonce' => wp_create_nonce( self::LINK_NONCE_ACTION ),
+			),
+			self::redirect_uri()
+		);
+	}
+
+	/**
 	 * Entry point for wp-login.php?action=qrauth_psl_oidc.
 	 */
 	public function handle(): void {
@@ -141,6 +179,22 @@ final class LoginFlow {
 			$this->fail( $e->get_machine_code(), $e->getMessage() );
 		}
 
+		if ( $this->start_limit_exceeded() ) {
+			$this->fail( 'rate_limited' );
+		}
+
+		// Linking from the profile page: only for the signed-in user, with a nonce.
+		$link_user_id = 0;
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- the nonce is verified right here.
+		if ( isset( $_GET['intent'] ) && 'link' === $_GET['intent'] ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- verified on this line.
+			$link_nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['_wpnonce'] ) ) : '';
+			if ( ! is_user_logged_in() || ! wp_verify_nonce( $link_nonce, self::LINK_NONCE_ACTION ) ) {
+				$this->fail( 'link_session' );
+			}
+			$link_user_id = get_current_user_id();
+		}
+
 		$state    = IdToken::b64url_encode( random_bytes( 32 ) );
 		$nonce    = IdToken::b64url_encode( random_bytes( 32 ) );
 		$verifier = IdToken::b64url_encode( random_bytes( 32 ) );
@@ -148,6 +202,9 @@ final class LoginFlow {
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only destination, validated below.
 		$requested = isset( $_GET['redirect_to'] ) ? esc_url_raw( wp_unslash( (string) $_GET['redirect_to'] ) ) : '';
+		if ( $link_user_id > 0 ) {
+			$requested = admin_url( 'profile.php' );
+		}
 
 		set_transient(
 			self::state_key( $state ),
@@ -156,6 +213,7 @@ final class LoginFlow {
 				'verifier'     => $verifier,
 				'binding_hash' => hash( 'sha256', $binding ),
 				'redirect_to'  => wp_validate_redirect( $requested, '' ),
+				'link_user_id' => $link_user_id,
 			),
 			self::FLOW_TTL
 		);
@@ -202,6 +260,11 @@ final class LoginFlow {
 			$this->fail( $e->get_machine_code(), $e->getMessage() );
 		}
 
+		$link_user_id = (int) ( $flow['link_user_id'] ?? 0 );
+		if ( $link_user_id > 0 ) {
+			$this->complete_link( $link_user_id, $identity );
+		}
+
 		try {
 			$user_id = $this->linker->link_or_provision_identity( $identity );
 		} catch ( VerifyException $e ) {
@@ -209,8 +272,30 @@ final class LoginFlow {
 		}
 
 		$this->sign_in( $user_id, $identity );
+		$this->clear_binding();
 		$destination = wp_validate_redirect( (string) $flow['redirect_to'], admin_url() );
 		$this->go( '' !== $destination ? $destination : admin_url(), false );
+	}
+
+	/**
+	 * Link the verified identity to the user who started the link, if that
+	 * user is still the one signed in on this browser. Never returns.
+	 *
+	 * @param int      $user_id  User who started the link.
+	 * @param Identity $identity Verified identity.
+	 * @return never
+	 */
+	private function complete_link( int $user_id, Identity $identity ): never {
+		if ( get_current_user_id() !== $user_id ) {
+			$this->fail( 'link_session' );
+		}
+		try {
+			$this->linker->link_subject_to_user( $user_id, $identity );
+		} catch ( VerifyException $e ) {
+			$this->fail( $e->get_machine_code(), $e->getMessage() );
+		}
+		$this->clear_binding();
+		$this->go( add_query_arg( self::LINKED_ARG, '1', admin_url( 'profile.php' ) ), false );
 	}
 
 	/**
@@ -258,7 +343,7 @@ final class LoginFlow {
 		// Single use, whatever happens next.
 		delete_transient( $key );
 
-		$binding = isset( $_COOKIE[ self::BINDING_COOKIE ] ) ? sanitize_text_field( wp_unslash( (string) $_COOKIE[ self::BINDING_COOKIE ] ) ) : '';
+		$binding = self::read_binding_cookie();
 		if ( '' === $binding || ! hash_equals( (string) $flow['binding_hash'], hash( 'sha256', $binding ) ) ) {
 			return null;
 		}
@@ -272,25 +357,79 @@ final class LoginFlow {
 	 * @return string
 	 */
 	private function binding_token(): string {
-		$existing = isset( $_COOKIE[ self::BINDING_COOKIE ] ) ? sanitize_text_field( wp_unslash( (string) $_COOKIE[ self::BINDING_COOKIE ] ) ) : '';
+		$existing = self::read_binding_cookie();
 		$token    = 1 === preg_match( '/^[A-Za-z0-9_-]{43}$/', $existing ) ? $existing : IdToken::b64url_encode( random_bytes( 32 ) );
-
-		if ( ! headers_sent() ) {
-			setcookie(
-				self::BINDING_COOKIE,
-				$token,
-				array(
-					'expires'  => time() + self::FLOW_TTL,
-					'path'     => SITECOOKIEPATH,
-					'domain'   => COOKIE_DOMAIN,
-					'secure'   => is_ssl(),
-					'httponly' => true,
-					// Lax: the callback is a top-level GET navigation from the provider.
-					'samesite' => 'Lax',
-				)
-			);
-		}
+		self::write_binding_cookie( $token, time() + self::FLOW_TTL );
 		return $token;
+	}
+
+	/**
+	 * Drop the binding cookie once a flow has completed.
+	 */
+	private function clear_binding(): void {
+		self::write_binding_cookie( '', time() - YEAR_IN_SECONDS );
+	}
+
+	/**
+	 * The binding cookie's name: `__Host-` prefixed on https.
+	 *
+	 * @return string
+	 */
+	public static function binding_cookie_name(): string {
+		return is_ssl() ? self::HOST_BINDING_COOKIE : self::BINDING_COOKIE;
+	}
+
+	/**
+	 * Read this browser's binding cookie.
+	 *
+	 * @return string
+	 */
+	private static function read_binding_cookie(): string {
+		$name = self::binding_cookie_name();
+		return isset( $_COOKIE[ $name ] ) ? sanitize_text_field( wp_unslash( (string) $_COOKIE[ $name ] ) ) : '';
+	}
+
+	/**
+	 * Set or expire the binding cookie.
+	 *
+	 * @param string $value   Cookie value.
+	 * @param int    $expires Expiry timestamp.
+	 */
+	private static function write_binding_cookie( string $value, int $expires ): void {
+		if ( headers_sent() ) {
+			return;
+		}
+		$is_host_cookie = is_ssl();
+		setcookie(
+			self::binding_cookie_name(),
+			$value,
+			array(
+				'expires'  => $expires,
+				// `__Host-` requires path "/" and no domain.
+				'path'     => $is_host_cookie ? '/' : SITECOOKIEPATH,
+				'domain'   => $is_host_cookie ? '' : COOKIE_DOMAIN,
+				'secure'   => $is_host_cookie,
+				'httponly' => true,
+				// Lax: the callback is a top-level GET navigation from the provider.
+				'samesite' => 'Lax',
+			)
+		);
+	}
+
+	/**
+	 * Count a flow start for this IP; true once the limit is passed.
+	 *
+	 * @return bool
+	 */
+	private function start_limit_exceeded(): bool {
+		$ip    = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( (string) $_SERVER['REMOTE_ADDR'] ) ) : 'unknown';
+		$key   = 'qrauth_psl_rl_oidc_' . md5( $ip );
+		$count = (int) get_transient( $key );
+		if ( $count >= self::START_LIMIT ) {
+			return true;
+		}
+		set_transient( $key, $count + 1, self::FLOW_TTL );
+		return false;
 	}
 
 	/**
@@ -300,13 +439,28 @@ final class LoginFlow {
 	 * @param Identity $identity Verified identity.
 	 */
 	private function sign_in( int $user_id, Identity $identity ): void {
-		wp_set_auth_cookie( $user_id, true, is_ssl() );
-		wp_set_current_user( $user_id );
 		$user = get_userdata( $user_id );
-		if ( $user instanceof WP_User ) {
-			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core's login action, so security plugins and audit logs see this sign-in.
-			do_action( 'wp_login', $user->user_login, $user );
+		if ( ! $user instanceof WP_User ) {
+			$this->fail( 'internal_error', 'linked user missing' );
 		}
+
+		// Let account-state plugins (disabled, pending approval, lockouts)
+		// refuse the sign-in as they would a password login. The password is
+		// empty: this sign-in has none.
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core's filter, so account-state plugins apply.
+		$checked = apply_filters( 'wp_authenticate_user', $user, '' );
+		if ( is_wp_error( $checked ) || ! $checked instanceof WP_User ) {
+			$this->fail( 'account_blocked', is_wp_error( $checked ) ? $checked->get_error_code() : 'filter returned no user' );
+		}
+		if ( is_multisite() && ( is_user_spammy( $user ) || ! is_user_member_of_blog( $user_id ) ) ) {
+			$this->fail( 'account_blocked', 'multisite: spam or not a member' );
+		}
+
+		// Not "remember me": a browser session, as when the box is unticked.
+		wp_set_auth_cookie( $user_id, false, is_ssl() );
+		wp_set_current_user( $user_id );
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core's login action, so security plugins and audit logs see this sign-in.
+		do_action( 'wp_login', $user->user_login, $user );
 		do_action( 'qrauth_psl_oidc_signed_in', $user_id, $identity );
 	}
 
@@ -376,6 +530,24 @@ final class LoginFlow {
 	}
 
 	/**
+	 * Success notice on the profile page after linking.
+	 */
+	public function show_linked_notice(): void {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display only.
+		if ( ! isset( $_GET[ self::LINKED_ARG ] ) || ! function_exists( 'get_current_screen' ) ) {
+			return;
+		}
+		$screen = get_current_screen();
+		if ( null === $screen || 'profile' !== $screen->id ) {
+			return;
+		}
+		printf(
+			'<div class="notice notice-success is-dismissible"><p>%s</p></div>',
+			esc_html__( 'Your QRAuth account is linked. You can now sign in with QRAuth.', 'qrauth-passwordless-social-login' )
+		);
+	}
+
+	/**
 	 * Customer-facing message for a machine code.
 	 *
 	 * @param string $code Machine code.
@@ -388,6 +560,10 @@ final class LoginFlow {
 			'provision_disabled'  => __( 'There is no account on this site for your QRAuth identity.', 'qrauth-passwordless-social-login' ),
 			'email_unverified'    => __( 'Your QRAuth email address is not verified, so it cannot be matched to an account here.', 'qrauth-passwordless-social-login' ),
 			'account_conflict'    => __( 'This site account is already linked to a different QRAuth identity.', 'qrauth-passwordless-social-login' ),
+			'link_required'       => __( 'This account has elevated permissions, so it must be linked to QRAuth from its own profile first. Sign in with your password, then choose "Link your QRAuth account" on your profile.', 'qrauth-passwordless-social-login' ),
+			'link_session'        => __( 'Linking needs you to be signed in on this browser. Sign in, then start again from your profile.', 'qrauth-passwordless-social-login' ),
+			'account_blocked'     => __( 'This account cannot sign in right now.', 'qrauth-passwordless-social-login' ),
+			'rate_limited'        => __( 'Too many sign-in attempts. Please wait a few minutes and try again.', 'qrauth-passwordless-social-login' ),
 			'not_configured'      => __( 'QRAuth sign-in is not configured on this site.', 'qrauth-passwordless-social-login' ),
 			default               => __( 'QRAuth sign-in failed. Please try again.', 'qrauth-passwordless-social-login' ),
 		};
@@ -403,7 +579,7 @@ final class LoginFlow {
 			return $this->provider;
 		}
 		$options = Options::all();
-		return new Provider( $options['oidc_issuer'], $options['oidc_client_id'], $options['oidc_client_secret'] );
+		return new Provider( Options::oidc_issuer(), $options['oidc_client_id'], $options['oidc_client_secret'] );
 	}
 
 	/**

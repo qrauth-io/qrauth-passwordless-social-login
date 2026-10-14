@@ -68,6 +68,7 @@ final class UserLinkerTest extends TestCase {
 		Functions\when( 'get_users' )->justReturn( array() );
 		Functions\when( 'get_user_by' )->justReturn( false );
 		Functions\when( 'username_exists' )->justReturn( false );
+		Functions\when( 'user_can' )->justReturn( false );
 		Functions\when( 'wp_generate_password' )->justReturn( 'random-pass' );
 		Functions\when( 'do_action' )->justReturn( null );
 		Functions\when( 'is_wp_error' )->alias(
@@ -510,5 +511,47 @@ final class UserLinkerTest extends TestCase {
 		$this->assertSame( 77, ( new UserLinker() )->link_or_provision_identity( $this->identity() ) );
 		$this->assertSame( 'subscriber', $this->inserts[0]['role'] );
 		$this->assertSame( 'alice@example.com', $this->inserts[0]['user_email'] );
+	}
+
+	/**
+	 * Editors and above are never linked by email, even when verified.
+	 */
+	public function test_oidc_never_links_an_elevated_account_by_email(): void {
+		$user     = new WP_User();
+		$user->ID = 1;
+		Functions\when( 'get_user_by' )->justReturn( $user );
+		Functions\when( 'get_user_meta' )->justReturn( '' );
+		Functions\when( 'user_can' )->alias(
+			static fn( $u, $cap ) => UserLinker::ELEVATED_CAPABILITY === $cap
+		);
+
+		$this->expect_verify_code( 'link_required', fn() => ( new UserLinker() )->link_or_provision_identity( $this->identity() ) );
+		$this->assertSame( array(), $this->meta_updates );
+	}
+
+	/**
+	 * The signed-in user can link their own account from the profile.
+	 */
+	public function test_link_subject_to_the_signed_in_user(): void {
+		( new UserLinker() )->link_subject_to_user( 1, $this->identity() );
+
+		$this->assertSame(
+			array(
+				'user_id' => 1,
+				'key'     => UserMetaKeys::OIDC_SUBJECT,
+				'value'   => 'pairwise-sub-1',
+			),
+			$this->meta_updates[0]
+		);
+	}
+
+	/**
+	 * A subject already linked to someone else cannot be linked again.
+	 */
+	public function test_link_subject_refuses_a_subject_owned_by_another_user(): void {
+		Functions\when( 'get_users' )->justReturn( array( 99 ) );
+
+		$this->expect_verify_code( 'account_conflict', fn() => ( new UserLinker() )->link_subject_to_user( 1, $this->identity() ) );
+		$this->assertSame( array(), $this->meta_updates );
 	}
 }

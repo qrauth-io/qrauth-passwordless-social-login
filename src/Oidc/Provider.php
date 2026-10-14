@@ -125,7 +125,7 @@ class Provider {
 	 * @throws OidcException On transport errors or an unusable response.
 	 */
 	public function exchange_code( string $code, string $code_verifier, string $redirect_uri ): array {
-		$response = wp_remote_post(
+		$response = wp_safe_remote_post(
 			(string) $this->discovery()['token_endpoint'],
 			array(
 				'timeout'     => self::TIMEOUT,
@@ -168,7 +168,7 @@ class Provider {
 	 * @throws OidcException On transport errors or an unusable response.
 	 */
 	public function userinfo( string $access_token ): array {
-		$response = wp_remote_get(
+		$response = wp_safe_remote_get(
 			(string) $this->discovery()['userinfo_endpoint'],
 			array(
 				'timeout'     => self::TIMEOUT,
@@ -192,7 +192,7 @@ class Provider {
 	 * @throws OidcException On transport errors or non-JSON.
 	 */
 	private function get_json( string $url ): array {
-		$response = wp_remote_get(
+		$response = wp_safe_remote_get(
 			$url,
 			array(
 				'timeout'     => self::TIMEOUT,

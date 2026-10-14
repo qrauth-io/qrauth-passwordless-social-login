@@ -370,6 +370,6 @@ final class SanitizeTest extends TestCase {
 	 * @param bool   $is_valid Expected result.
 	 */
 	public function test_oidc_issuer_must_be_a_bare_https_origin( string $issuer, bool $is_valid ): void {
-		$this->assertSame( $is_valid, Settings::is_valid_issuer( $issuer ) );
+		$this->assertSame( $is_valid, \QRAuth\PasswordlessSocialLogin\Support\Options::is_valid_issuer( $issuer ) );
 	}
 }

@@ -82,7 +82,6 @@ final class Options {
 			'enabled_on'         => is_array( $merged['enabled_on'] ?? null ) ? array_values( $merged['enabled_on'] ) : array( 'wp-login', 'register', 'profile' ),
 			'oidc_client_id'     => (string) ( $merged['oidc_client_id'] ?? '' ),
 			'oidc_client_secret' => (string) ( $merged['oidc_client_secret'] ?? '' ),
-			'oidc_issuer'        => (string) ( $merged['oidc_issuer'] ?? self::DEFAULT_OIDC_ISSUER ),
 		);
 	}
 
@@ -95,6 +94,37 @@ final class Options {
 	public static function uses_oidc(): bool {
 		$all = self::all();
 		return '' !== $all['oidc_client_id'] && '' !== $all['oidc_client_secret'];
+	}
+
+	/**
+	 * True for `https://host[:port]` with nothing after the authority.
+	 *
+	 * @param string $issuer Candidate issuer URL.
+	 * @return bool
+	 */
+	public static function is_valid_issuer( string $issuer ): bool {
+		$parts = wp_parse_url( $issuer );
+		return is_array( $parts )
+			&& 'https' === ( $parts['scheme'] ?? '' )
+			&& '' !== ( $parts['host'] ?? '' )
+			&& empty( array_intersect_key( $parts, array_flip( array( 'path', 'query', 'fragment', 'user', 'pass' ) ) ) );
+	}
+
+	/**
+	 * The QRAuth OIDC issuer.
+	 *
+	 * @return string
+	 */
+	public static function oidc_issuer(): string {
+		/**
+		 * Filter the OIDC issuer. Only for a self-hosted QRAuth; it is not a
+		 * setting, so a stray option write cannot point sign-in at another
+		 * provider. Must be a bare https origin or the default is used.
+		 *
+		 * @param string $issuer Issuer URL.
+		 */
+		$issuer = (string) apply_filters( 'qrauth_psl_oidc_issuer', self::DEFAULT_OIDC_ISSUER );
+		return self::is_valid_issuer( $issuer ) ? $issuer : self::DEFAULT_OIDC_ISSUER;
 	}
 
 	/**
@@ -144,7 +174,6 @@ final class Options {
 			'enabled_on'         => array( 'wp-login', 'register', 'profile' ),
 			'oidc_client_id'     => '',
 			'oidc_client_secret' => '',
-			'oidc_issuer'        => self::DEFAULT_OIDC_ISSUER,
 		);
 	}
 

@@ -35,6 +35,12 @@ use QRAuth\PasswordlessSocialLogin\Verification\VerifyResult;
 final class UserLinker {
 
 	/**
+	 * Users with this capability are never linked by email (editors and up).
+	 */
+	public const ELEVATED_CAPABILITY = 'edit_others_posts';
+
+
+	/**
 	 * Resolve or create a WordPress user for the given verified QRAuth result.
 	 *
 	 * @param VerifyResult $result Verified session payload.
@@ -149,6 +155,13 @@ final class UserLinker {
 
 		$by_email = get_user_by( 'email', $identity->email );
 		if ( $by_email instanceof \WP_User ) {
+			// Accounts that can edit other people's content (editors and up)
+			// are never linked by email alone: control of a verified address
+			// at QRAuth must not be enough to take over wp-admin. They link
+			// once from their own profile while signed in (link_subject_to_user).
+			if ( user_can( $by_email, self::ELEVATED_CAPABILITY ) ) {
+				throw new VerifyException( 'link_required' );
+			}
 			$existing = (string) get_user_meta( (int) $by_email->ID, UserMetaKeys::OIDC_SUBJECT, true );
 			if ( '' !== $existing && $existing !== $identity->subject ) {
 				throw new VerifyException( 'account_conflict' );
@@ -179,6 +192,31 @@ final class UserLinker {
 		$this->stamp_subject( $user_id, $identity );
 		do_action( 'qrauth_psl_user_provisioned', $user_id, $identity );
 		return $user_id;
+	}
+
+	/**
+	 * Link a verified identity to a user who is signed in and started the
+	 * link from their own profile. Refuses a subject already linked to
+	 * someone else; replaces the user's own previous subject.
+	 *
+	 * @param int      $user_id  WordPress user id (the signed-in user).
+	 * @param Identity $identity Verified identity.
+	 * @throws VerifyException With `account_conflict`.
+	 */
+	public function link_subject_to_user( int $user_id, Identity $identity ): void {
+		$by_subject = get_users(
+			array(
+				'meta_key'   => UserMetaKeys::OIDC_SUBJECT, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- indexed meta_key lookup, single row.
+				'meta_value' => $identity->subject,         // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- matched against indexed meta_key above.
+				'number'     => 1,
+				'fields'     => 'ID',
+			)
+		);
+		if ( ! empty( $by_subject ) && (int) $by_subject[0] !== $user_id ) {
+			throw new VerifyException( 'account_conflict' );
+		}
+		$this->stamp_subject( $user_id, $identity );
+		do_action( 'qrauth_psl_user_linked', $user_id, $identity );
 	}
 
 	/**
