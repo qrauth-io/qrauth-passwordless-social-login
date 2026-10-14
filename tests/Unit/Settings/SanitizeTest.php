@@ -342,4 +342,34 @@ final class SanitizeTest extends TestCase {
 
 		$this->assertSame( array( 'wp-login', 'register' ), $clean['enabled_on'] );
 	}
+
+	/**
+	 * Cases for the data-driven test below.
+	 *
+	 * @return array<string,array{0:string,1:bool}>
+	 */
+	public static function issuers(): array {
+		return array(
+			'default'        => array( 'https://id.qrauth.io', true ),
+			'staging'        => array( 'https://id-staging.qrauth.io', true ),
+			'http'           => array( 'http://id.qrauth.io', false ),
+			'trailing slash' => array( 'https://id.qrauth.io/', false ),
+			'path'           => array( 'https://id.qrauth.io/tenant', false ),
+			'query'          => array( 'https://id.qrauth.io?x=1', false ),
+			'credentials'    => array( 'https://u:p@id.qrauth.io', false ),
+			'not a url'      => array( 'id.qrauth.io', false ),
+		);
+	}
+
+	/**
+	 * Runs once per case from issuers().
+	 *
+	 * @dataProvider issuers
+	 *
+	 * @param string $issuer   Candidate.
+	 * @param bool   $is_valid Expected result.
+	 */
+	public function test_oidc_issuer_must_be_a_bare_https_origin( string $issuer, bool $is_valid ): void {
+		$this->assertSame( $is_valid, \QRAuth\PasswordlessSocialLogin\Support\Options::is_valid_issuer( $issuer ) );
+	}
 }

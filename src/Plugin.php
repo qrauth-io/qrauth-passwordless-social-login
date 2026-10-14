@@ -16,6 +16,7 @@ use QRAuth\PasswordlessSocialLogin\Frontend\LoginWidget;
 use QRAuth\PasswordlessSocialLogin\Frontend\ProfileFields;
 use QRAuth\PasswordlessSocialLogin\Frontend\Shortcode;
 use QRAuth\PasswordlessSocialLogin\Frontend\WooCommerceLogin;
+use QRAuth\PasswordlessSocialLogin\Oidc\LoginFlow;
 use QRAuth\PasswordlessSocialLogin\Rest\AuthSessionProxyController;
 use QRAuth\PasswordlessSocialLogin\Rest\RestController;
 use QRAuth\PasswordlessSocialLogin\Settings\Settings;
@@ -96,6 +97,13 @@ final class Plugin {
 	private ?WooCommerceLogin $woocommerce = null;
 
 	/**
+	 * OIDC sign-in flow.
+	 *
+	 * @var LoginFlow|null
+	 */
+	private ?LoginFlow $oidc = null;
+
+	/**
 	 * Return the shared plugin instance.
 	 */
 	public static function instance(): self {
@@ -151,6 +159,9 @@ final class Plugin {
 
 		$this->woocommerce = new WooCommerceLogin();
 		$this->woocommerce->boot();
+
+		$this->oidc = new LoginFlow();
+		$this->oidc->boot();
 	}
 
 	/**

@@ -11,6 +11,7 @@ namespace QRAuth\PasswordlessSocialLogin\Frontend;
 
 defined( 'ABSPATH' ) || exit;
 
+use QRAuth\PasswordlessSocialLogin\Oidc\LoginFlow;
 use QRAuth\PasswordlessSocialLogin\Support\Options;
 use QRAuth\PasswordlessSocialLogin\UserLinking\UserLinker;
 use QRAuth\PasswordlessSocialLogin\UserLinking\UserMetaKeys;
@@ -70,7 +71,11 @@ final class ProfileFields {
 			return;
 		}
 
-		$linked_id = (string) get_user_meta( $user->ID, UserMetaKeys::QRAUTH_USER_ID, true );
+		// OIDC subject first: it is what an OIDC sign-in matches on.
+		$linked_id = (string) get_user_meta( $user->ID, UserMetaKeys::OIDC_SUBJECT, true );
+		if ( '' === $linked_id ) {
+			$linked_id = (string) get_user_meta( $user->ID, UserMetaKeys::QRAUTH_USER_ID, true );
+		}
 		$linked_at = (string) get_user_meta( $user->ID, UserMetaKeys::LINKED_AT, true );
 		$is_linked = '' !== $linked_id;
 
@@ -154,10 +159,25 @@ final class ProfileFields {
 						<p class="description">
 							<?php
 							esc_html_e(
-								'Sign in via the QRAuth widget on wp-login.php to link this account.',
+								'Sign in with QRAuth on the login page, or link it below, to connect this account.',
 								'qrauth-passwordless-social-login'
 							);
 							?>
+						</p>
+					</td>
+				</tr>
+			<?php endif; ?>
+			<?php if ( Options::uses_oidc() && get_current_user_id() === (int) $user->ID && '' === (string) get_user_meta( $user->ID, UserMetaKeys::OIDC_SUBJECT, true ) ) : ?>
+				<tr>
+					<th scope="row">
+						<?php esc_html_e( 'Sign in with QRAuth', 'qrauth-passwordless-social-login' ); ?>
+					</th>
+					<td>
+						<a class="button button-secondary" href="<?php echo esc_url( LoginFlow::link_url() ); ?>">
+							<?php esc_html_e( 'Link your QRAuth account', 'qrauth-passwordless-social-login' ); ?>
+						</a>
+						<p class="description">
+							<?php esc_html_e( 'Confirms your QRAuth identity and links it to this account, so you can sign in with QRAuth. Accounts that can edit other people\'s content can only be linked this way.', 'qrauth-passwordless-social-login' ); ?>
 						</p>
 					</td>
 				</tr>

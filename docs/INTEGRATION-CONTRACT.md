@@ -119,6 +119,40 @@ Requested scopes must be a subset of the App's `allowedScopes` registered on the
 
 ---
 
+### 3.6 OpenID Connect (recommended)
+
+New integrations sign in through QRAuth's OpenID Provider instead of the
+embedded widget (QRAuth ADR-0004). The CMS is a confidential OIDC client.
+
+- **Issuer:** `https://id.qrauth.io`. Read every endpoint from
+  `/.well-known/openid-configuration`; require the document's `issuer` to equal
+  the configured issuer and every endpoint to be https on the issuer's host.
+- **Client:** created in the QRAuth dashboard under Sign-in clients, with the
+  CMS's callback as an exact-match redirect URI (query strings allowed,
+  fragments and wildcards not). Default ID token algorithm RS256.
+- **Request:** authorization code flow, `scope=openid profile email`, PKCE
+  `S256`, a random `state` and `nonce`.
+- **State:** single-use and bound to the browser that started the flow (store
+  only a hash of an HttpOnly, SameSite=Lax cookie with the state). Refuse a
+  callback whose state is unknown, used, or from another browser.
+- **Token exchange:** `client_secret_basic` (form-encode id and secret before
+  Base64), `code_verifier`, the same `redirect_uri`.
+- **ID token:** verify the RS256 signature against the JWKS (refresh once on
+  an unknown `kid`), then `iss`, `aud` (and `azp` when several audiences),
+  `exp`, `iat` and `nonce` (OIDC Core 3.1.3.7). Fail closed.
+- **Userinfo:** call it with the access token; its `sub` must equal the ID
+  token's.
+- **Subject:** `sub` is pairwise per client. Store it per user; it is not the
+  legacy QRAuth user id.
+- **Linking:** by stored `sub`; otherwise by email only when
+  `email_verified` is true and the account is not linked to another `sub`;
+  otherwise provision, if the site allows it.
+- **Mobile:** every step is a top-level navigation in one browser. QRAuth's
+  login page offers "Approve on this device" and returns the visitor to the
+  flow, so the callback lands in the tab that started it.
+
+The WordPress plugin implements this in `src/Oidc/` (0.2.0+).
+
 ## 4. REST contract
 
 Base URL: `https://qrauth.io` (overridable via the component's `base-url` attribute for self-hosted QRAuth deployments).

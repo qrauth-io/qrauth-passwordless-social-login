@@ -27,3 +27,12 @@
 .qrauth-psl-widget--inline qrauth-login {
 	display: block;
 }
+
+/* OIDC "Sign in with QRAuth" link (shown instead of the widget). */
+.qrauth-psl-oidc-button {
+	display: inline-block;
+	width: 100%;
+	max-width: 320px;
+	box-sizing: border-box;
+	text-align: center;
+}

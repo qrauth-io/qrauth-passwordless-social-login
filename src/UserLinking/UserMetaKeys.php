@@ -28,4 +28,10 @@ final class UserMetaKeys {
 	 * ISO-8601 UTC timestamp of the first successful link.
 	 */
 	public const LINKED_AT = 'qrauth_psl_linked_at';
+
+	/**
+	 * Pairwise OIDC subject (`sub`) of the linked QRAuth identity. Separate
+	 * from QRAUTH_USER_ID: the OIDC subject is per site, not the legacy id.
+	 */
+	public const OIDC_SUBJECT = 'qrauth_psl_oidc_sub';
 }

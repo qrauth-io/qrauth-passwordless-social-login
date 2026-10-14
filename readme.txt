@@ -4,7 +4,7 @@ Tags: login, passwordless, qr code, social login, authentication
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.2
-Stable tag: 0.1.24
+Stable tag: 0.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -35,6 +35,8 @@ QRAuth verifies that the user who scanned the QR code (or completed a social-pro
 * **Auth-session creation** — when a visitor opens a page that hosts the widget (wp-login.php, the registration form, a shortcode-enabled page, or a WooCommerce sign-in form), the plugin's same-origin REST proxy sends your Client ID, Client Secret (server-side only — never exposed to the browser), and the host page URL to `https://qrauth.io/api/v1/auth-sessions`. No visitor data is included in this request.
 * **Sign-in verification** — when the visitor approves the sign-in (by scanning the QR code with their phone or completing a social-provider flow on QRAuth's hosted approval page), the plugin's REST proxy fetches the verified result from `https://qrauth.io/api/v1/auth-sessions/verify-result`. The response carries the QRAuth user identifier and, when the `email` scope is allowed in Settings → QRAuth, the user's email address. The plugin uses this only to locate or create the matching WordPress user; nothing beyond a hashed link reference is retained.
 * **Hosted approval page** — when a visitor on a phone taps "Continue with QRAuth", the browser navigates to `https://qrauth.io/a/<token>` to complete the social-provider flow. This is a standard cross-domain navigation initiated by the visitor.
+
+* **Sign in with QRAuth (OpenID Connect), when an OIDC client is configured** — the visitor's browser is redirected to `https://id.qrauth.io/authorize` with your OIDC Client ID, the redirect URI, and one-time state, nonce and PKCE values; the visitor signs in on QRAuth's pages and is redirected back. Your server then calls `https://id.qrauth.io`: the discovery document and signing keys (`/.well-known/openid-configuration`, `/.well-known/jwks.json`, nothing sent), the token endpoint (`/token`: your OIDC Client ID and Client Secret, the one-time authorization code and PKCE verifier), and the userinfo endpoint (`/userinfo`: the access token). The responses carry a site-specific QRAuth user identifier and, with the visitor's consent, their name and email address and whether QRAuth has verified it. The plugin uses these only to sign the visitor in to the matching WordPress account. The OIDC Client Secret is stored in your site's options table, like the widget's Client Secret, and is never sent to the browser.
 
 The vendored web component (`assets/js/qrauth-components.js`) is served from your own WordPress site — there is no third-party JavaScript on wp-login.php, and the component does not contact qrauth.io directly from the browser; all server-to-server calls are proxied via your site's REST API.
 
@@ -139,6 +141,14 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 4. The QRAuth dashboard at qrauth.io — where site operators generate the Client ID and Client Secret to paste into the plugin settings.
 
 == Changelog ==
+= 0.2.0 =
+* New: Sign in with QRAuth over OpenID Connect. Create a sign-in client in the QRAuth dashboard, register the redirect URI shown on the settings page, and enter its Client ID and Client Secret under Settings, QRAuth. The sign-in button then sends visitors to QRAuth and back with full-page redirects, so sign-in finishes in the same tab on phones as well as desktops. Sites without an OIDC client keep using the embedded widget unchanged.
+* Security: the OIDC flow uses the authorization code flow with PKCE, a single-use state bound to the visitor's browser, and a nonce. The ID token's signature and claims are verified against QRAuth's published keys before anyone is signed in.
+* Security: an OIDC sign-in matches an existing account by email only when QRAuth reports the address as verified, and never re-links an account already linked to a different QRAuth identity.
+* Security: accounts that can edit other people's content (Editor, Administrator) are never linked by email. Link them once from the user's own profile ("Link your QRAuth account") while signed in with a password. Administrators who signed in with the widget before need to do this once after switching to OIDC.
+* Security: OIDC sign-ins pass through the same `wp_authenticate_user` checks as a password login (account-approval and lockout plugins apply), respect multisite membership, and start a browser session rather than a "remember me" one. The browser-binding cookie uses the `__Host-` prefix on https, and flow starts are rate limited per IP.
+* The OIDC issuer is fixed to https://id.qrauth.io. A self-hosted QRAuth can override it with the `qrauth_psl_oidc_issuer` filter.
+
 = 0.1.24 =
 * Security: bumped the vendored QRAuth web component to 0.4.2. Error messages returned by the QRAuth service are now shown as plain text and never interpreted as HTML, and the one-time PKCE verifier used while waiting for approval is sent in a request header instead of the request URL, which keeps it out of server access logs.
 * Security: the server-side verification call to QRAuth now sends your site's QRAuth app credentials. QRAuth then confirms a sign-in only when it was approved for your site's own app, so an approval made for a different site cannot be replayed against yours. No settings change is needed: the credentials are the Client ID and Client Secret already saved for the plugin.

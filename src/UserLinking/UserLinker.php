@@ -11,6 +11,7 @@ namespace QRAuth\PasswordlessSocialLogin\UserLinking;
 
 defined( 'ABSPATH' ) || exit;
 
+use QRAuth\PasswordlessSocialLogin\Oidc\Identity;
 use QRAuth\PasswordlessSocialLogin\Support\Options;
 use QRAuth\PasswordlessSocialLogin\Verification\VerifyException;
 use QRAuth\PasswordlessSocialLogin\Verification\VerifyResult;
@@ -32,6 +33,12 @@ use QRAuth\PasswordlessSocialLogin\Verification\VerifyResult;
  * @since 0.1.0
  */
 final class UserLinker {
+
+	/**
+	 * Users with this capability are never linked by email (editors and up).
+	 */
+	public const ELEVATED_CAPABILITY = 'edit_others_posts';
+
 
 	/**
 	 * Resolve or create a WordPress user for the given verified QRAuth result.
@@ -110,6 +117,120 @@ final class UserLinker {
 	}
 
 	/**
+	 * Resolve a verified OIDC identity to a WordPress user.
+	 *
+	 * 1. A user already linked to this subject.
+	 * 2. A user with the same email, only when QRAuth reports the email as
+	 *    verified (an unverified address would let anyone claim an account,
+	 *    administrators included) and the user is not linked to a different
+	 *    QRAuth subject.
+	 * 3. A new subscriber, when auto-provisioning is on and the email is verified.
+	 *
+	 * @param Identity $identity Verified identity.
+	 * @return int WordPress user id.
+	 * @throws VerifyException With `email_unverified`, `account_conflict`,
+	 *                         `provision_disabled` or `internal_error`.
+	 */
+	public function link_or_provision_identity( Identity $identity ): int {
+		$by_subject = get_users(
+			array(
+				'meta_key'   => UserMetaKeys::OIDC_SUBJECT, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- indexed meta_key lookup, single row.
+				'meta_value' => $identity->subject,         // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- matched against indexed meta_key above.
+				'number'     => 1,
+				'fields'     => 'ID',
+			)
+		);
+		if ( ! empty( $by_subject ) ) {
+			$user_id = (int) $by_subject[0];
+			update_user_meta( $user_id, UserMetaKeys::LINKED_AT, gmdate( 'c' ) );
+			return $user_id;
+		}
+
+		if ( null === $identity->email ) {
+			throw new VerifyException( 'provision_disabled', 'no email claim' );
+		}
+		if ( ! $identity->email_verified ) {
+			throw new VerifyException( 'email_unverified' );
+		}
+
+		$by_email = get_user_by( 'email', $identity->email );
+		if ( $by_email instanceof \WP_User ) {
+			// Accounts that can edit other people's content (editors and up)
+			// are never linked by email alone: control of a verified address
+			// at QRAuth must not be enough to take over wp-admin. They link
+			// once from their own profile while signed in (link_subject_to_user).
+			if ( user_can( $by_email, self::ELEVATED_CAPABILITY ) ) {
+				throw new VerifyException( 'link_required' );
+			}
+			$existing = (string) get_user_meta( (int) $by_email->ID, UserMetaKeys::OIDC_SUBJECT, true );
+			if ( '' !== $existing && $existing !== $identity->subject ) {
+				throw new VerifyException( 'account_conflict' );
+			}
+			$this->stamp_subject( (int) $by_email->ID, $identity );
+			return (int) $by_email->ID;
+		}
+
+		if ( true !== Options::all()['auto_provision'] ) {
+			throw new VerifyException( 'provision_disabled' );
+		}
+
+		$user_id = wp_insert_user(
+			array(
+				'user_login'   => $this->derive_user_login( $identity->email ),
+				'user_email'   => $identity->email,
+				'user_pass'    => wp_generate_password( 32, true, true ),
+				'display_name' => null !== $identity->name ? $identity->name : '',
+				// Same ceiling as the legacy path: never more than subscriber.
+				'role'         => 'subscriber',
+			)
+		);
+		if ( is_wp_error( $user_id ) ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- exception message is for logs, never rendered to users.
+			throw new VerifyException( 'internal_error', 'wp_insert_user failed: ' . $user_id->get_error_code() );
+		}
+		$user_id = (int) $user_id;
+		$this->stamp_subject( $user_id, $identity );
+		do_action( 'qrauth_psl_user_provisioned', $user_id, $identity );
+		return $user_id;
+	}
+
+	/**
+	 * Link a verified identity to a user who is signed in and started the
+	 * link from their own profile. Refuses a subject already linked to
+	 * someone else; replaces the user's own previous subject.
+	 *
+	 * @param int      $user_id  WordPress user id (the signed-in user).
+	 * @param Identity $identity Verified identity.
+	 * @throws VerifyException With `account_conflict`.
+	 */
+	public function link_subject_to_user( int $user_id, Identity $identity ): void {
+		$by_subject = get_users(
+			array(
+				'meta_key'   => UserMetaKeys::OIDC_SUBJECT, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- indexed meta_key lookup, single row.
+				'meta_value' => $identity->subject,         // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- matched against indexed meta_key above.
+				'number'     => 1,
+				'fields'     => 'ID',
+			)
+		);
+		if ( ! empty( $by_subject ) && (int) $by_subject[0] !== $user_id ) {
+			throw new VerifyException( 'account_conflict' );
+		}
+		$this->stamp_subject( $user_id, $identity );
+		do_action( 'qrauth_psl_user_linked', $user_id, $identity );
+	}
+
+	/**
+	 * Record the OIDC subject and link time on a user.
+	 *
+	 * @param int      $user_id  WordPress user id.
+	 * @param Identity $identity Verified identity.
+	 */
+	private function stamp_subject( int $user_id, Identity $identity ): void {
+		update_user_meta( $user_id, UserMetaKeys::OIDC_SUBJECT, $identity->subject );
+		update_user_meta( $user_id, UserMetaKeys::LINKED_AT, gmdate( 'c' ) );
+	}
+
+	/**
 	 * Detach QRAuth from a WP user account.
 	 *
 	 * Removes the link metadata only — the WP account itself (role, posts,
@@ -129,13 +250,15 @@ final class UserLinker {
 		}
 
 		$had_qrauth_id = (bool) get_user_meta( $user_id, UserMetaKeys::QRAUTH_USER_ID, true );
+		$had_subject   = (bool) get_user_meta( $user_id, UserMetaKeys::OIDC_SUBJECT, true );
 		$had_linked_at = (bool) get_user_meta( $user_id, UserMetaKeys::LINKED_AT, true );
 
-		if ( ! $had_qrauth_id && ! $had_linked_at ) {
+		if ( ! $had_qrauth_id && ! $had_linked_at && ! $had_subject ) {
 			return false;
 		}
 
 		delete_user_meta( $user_id, UserMetaKeys::QRAUTH_USER_ID );
+		delete_user_meta( $user_id, UserMetaKeys::OIDC_SUBJECT );
 		delete_user_meta( $user_id, UserMetaKeys::LINKED_AT );
 
 		do_action( 'qrauth_psl_user_unlinked', $user_id );

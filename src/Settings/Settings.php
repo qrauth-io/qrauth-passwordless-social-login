@@ -233,6 +233,18 @@ final class Settings {
 			$clean['tenant_url'] = (string) $previous['tenant_url'];
 		}
 
+		// OIDC ("Sign in with QRAuth"). The secret follows the same
+		// blank-means-keep rule as client_secret. The issuer is not a
+		// setting: see Options::oidc_issuer().
+		$clean['oidc_client_id'] = isset( $input['oidc_client_id'] )
+			? trim( sanitize_text_field( (string) $input['oidc_client_id'] ) )
+			: (string) $previous['oidc_client_id'];
+
+		$submitted_oidc_secret       = isset( $input['oidc_client_secret'] ) ? (string) $input['oidc_client_secret'] : '';
+		$clean['oidc_client_secret'] = '' === trim( $submitted_oidc_secret )
+			? (string) $previous['oidc_client_secret']
+			: trim( $submitted_oidc_secret );
+
 		// auto_provision.
 		$clean['auto_provision'] = ! empty( $input['auto_provision'] );
 
