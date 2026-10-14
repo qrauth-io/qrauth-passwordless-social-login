@@ -444,11 +444,22 @@ final class LoginFlow {
 			$this->fail( 'internal_error', 'linked user missing' );
 		}
 
-		// Let account-state plugins (disabled, pending approval, lockouts)
-		// refuse the sign-in as they would a password login. The password is
-		// empty: this sign-in has none.
-		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core's filter, so account-state plugins apply.
-		$checked = apply_filters( 'wp_authenticate_user', $user, '' );
+		// Core's `wp_authenticate_user` is deliberately NOT run: plugins hook
+		// it to check things only a password form carries (reCAPTCHA, 2FA
+		// codes) and refuse every redirect-based sign-in. An inactive account
+		// is refused here; account-approval plugins can refuse through
+		// `qrauth_psl_oidc_authenticate_user`.
+		if ( 0 !== (int) $user->user_status ) {
+			$this->fail( 'account_blocked', 'user_status ' . (int) $user->user_status );
+		}
+		/**
+		 * Filter a QRAuth sign-in before the auth cookie is set. Return a
+		 * WP_Error to refuse it (e.g. an account awaiting approval).
+		 *
+		 * @param WP_User  $user     The user about to be signed in.
+		 * @param Identity $identity The verified QRAuth identity.
+		 */
+		$checked = apply_filters( 'qrauth_psl_oidc_authenticate_user', $user, $identity );
 		if ( is_wp_error( $checked ) || ! $checked instanceof WP_User ) {
 			$this->fail( 'account_blocked', is_wp_error( $checked ) ? $checked->get_error_code() : 'filter returned no user' );
 		}

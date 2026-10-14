@@ -24,6 +24,20 @@ if ( ! class_exists( 'WP_User', false ) ) {
 		public int $ID = 0; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.PropertyNotSnakeCase -- mirrors WP_User's public ID property.
 
 		/**
+		 * Mirrors WP_User::$user_login (a magic property on the real class).
+		 *
+		 * @var string
+		 */
+		public string $user_login = '';
+
+		/**
+		 * Mirrors WP_User::$user_status (a magic property on the real class; "0" when active).
+		 *
+		 * @var int|string
+		 */
+		public $user_status = 0;
+
+		/**
 		 * Construct from an ID.
 		 *
 		 * @param int $user_id WP user ID.

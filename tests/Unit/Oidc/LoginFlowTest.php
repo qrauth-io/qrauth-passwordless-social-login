@@ -484,7 +484,35 @@ final class LoginFlowTest extends TestCase {
 	 * An account-state plugin refusing the user stops the sign-in.
 	 */
 	public function test_account_state_filter_can_refuse_the_sign_in(): void {
-		Monkey\Filters\expectApplied( 'wp_authenticate_user' )->andReturn( new \WP_Error( 'pending_approval', 'x' ) );
+		Monkey\Filters\expectApplied( 'qrauth_psl_oidc_authenticate_user' )->andReturn( new \WP_Error( 'pending_approval', 'x' ) );
+		$this->assertStringContainsString( 'account_blocked', $this->sign_in_with_valid_token() );
+		$this->assertNull( $this->signed_in );
+	}
+
+	/**
+	 * Password-form checks (reCAPTCHA, 2FA) on core's wp_authenticate_user never run.
+	 */
+	public function test_password_form_checks_do_not_block_a_qrauth_sign_in(): void {
+		Monkey\Filters\expectApplied( 'wp_authenticate_user' )->never();
+
+		$this->assertSame( '/my-account/', $this->sign_in_with_valid_token() );
+		$this->assertSame( 42, $this->signed_in );
+	}
+
+	/**
+	 * An inactive account (user_status set) is refused.
+	 */
+	public function test_an_inactive_account_is_refused(): void {
+		Functions\when( 'get_userdata' )->alias(
+			static function ( $id ) {
+				$user              = new WP_User();
+				$user->ID          = (int) $id;
+				$user->user_login  = 'alice';
+				$user->user_status = 1;
+				return $user;
+			}
+		);
+
 		$this->assertStringContainsString( 'account_blocked', $this->sign_in_with_valid_token() );
 		$this->assertNull( $this->signed_in );
 	}
