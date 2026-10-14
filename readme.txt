@@ -4,7 +4,7 @@ Tags: login, passwordless, qr code, social login, authentication
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.2
-Stable tag: 0.1.24
+Stable tag: 0.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -139,6 +139,11 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 4. The QRAuth dashboard at qrauth.io — where site operators generate the Client ID and Client Secret to paste into the plugin settings.
 
 == Changelog ==
+= 0.2.0 =
+* New: Sign in with QRAuth over OpenID Connect. Create a sign-in client in the QRAuth dashboard, register the redirect URI shown on the settings page, and enter its Client ID and Client Secret under Settings, QRAuth. The sign-in button then sends visitors to QRAuth and back with full-page redirects, so sign-in finishes in the same tab on phones as well as desktops. Sites without an OIDC client keep using the embedded widget unchanged.
+* Security: the OIDC flow uses the authorization code flow with PKCE, a single-use state bound to the visitor's browser, and a nonce. The ID token's signature and claims are verified against QRAuth's published keys before anyone is signed in.
+* Security: an OIDC sign-in matches an existing account by email only when QRAuth reports the address as verified, and never re-links an account already linked to a different QRAuth identity.
+
 = 0.1.24 =
 * Security: bumped the vendored QRAuth web component to 0.4.2. Error messages returned by the QRAuth service are now shown as plain text and never interpreted as HTML, and the one-time PKCE verifier used while waiting for approval is sent in a request header instead of the request URL, which keeps it out of server access logs.
 * Security: the server-side verification call to QRAuth now sends your site's QRAuth app credentials. QRAuth then confirms a sign-in only when it was approved for your site's own app, so an approval made for a different site cannot be replayed against yours. No settings change is needed: the credentials are the Client ID and Client Secret already saved for the plugin.

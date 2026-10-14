@@ -39,6 +39,11 @@ final class Options {
 	public const REST_NAMESPACE = 'qrauth-psl/v1';
 
 	/**
+	 * The QRAuth OpenID Provider.
+	 */
+	public const DEFAULT_OIDC_ISSUER = 'https://id.qrauth.io';
+
+	/**
 	 * Return the full merged settings array.
 	 *
 	 * @return array{
@@ -67,15 +72,38 @@ final class Options {
 		}
 
 		return array(
-			'client_id'      => (string) ( $merged['client_id'] ?? '' ),
-			'client_secret'  => (string) ( $merged['client_secret'] ?? '' ),
-			'tenant_url'     => (string) ( $merged['tenant_url'] ?? 'https://qrauth.io' ),
-			'api_base_url'   => function_exists( 'rest_url' ) ? (string) rest_url( self::REST_NAMESPACE ) : '',
-			'auto_provision' => (bool) ( $merged['auto_provision'] ?? false ),
-			'default_role'   => (string) ( $merged['default_role'] ?? 'subscriber' ),
-			'allowed_scopes' => is_array( $merged['allowed_scopes'] ?? null ) ? array_values( $merged['allowed_scopes'] ) : array( 'identity', 'email' ),
-			'enabled_on'     => is_array( $merged['enabled_on'] ?? null ) ? array_values( $merged['enabled_on'] ) : array( 'wp-login', 'register', 'profile' ),
+			'client_id'          => (string) ( $merged['client_id'] ?? '' ),
+			'client_secret'      => (string) ( $merged['client_secret'] ?? '' ),
+			'tenant_url'         => (string) ( $merged['tenant_url'] ?? 'https://qrauth.io' ),
+			'api_base_url'       => function_exists( 'rest_url' ) ? (string) rest_url( self::REST_NAMESPACE ) : '',
+			'auto_provision'     => (bool) ( $merged['auto_provision'] ?? false ),
+			'default_role'       => (string) ( $merged['default_role'] ?? 'subscriber' ),
+			'allowed_scopes'     => is_array( $merged['allowed_scopes'] ?? null ) ? array_values( $merged['allowed_scopes'] ) : array( 'identity', 'email' ),
+			'enabled_on'         => is_array( $merged['enabled_on'] ?? null ) ? array_values( $merged['enabled_on'] ) : array( 'wp-login', 'register', 'profile' ),
+			'oidc_client_id'     => (string) ( $merged['oidc_client_id'] ?? '' ),
+			'oidc_client_secret' => (string) ( $merged['oidc_client_secret'] ?? '' ),
+			'oidc_issuer'        => (string) ( $merged['oidc_issuer'] ?? self::DEFAULT_OIDC_ISSUER ),
 		);
+	}
+
+	/**
+	 * True when an OIDC client is configured; the sign-in button then uses
+	 * OpenID Connect instead of the embedded widget.
+	 *
+	 * @return bool
+	 */
+	public static function uses_oidc(): bool {
+		$all = self::all();
+		return '' !== $all['oidc_client_id'] && '' !== $all['oidc_client_secret'];
+	}
+
+	/**
+	 * True when either sign-in method is configured.
+	 *
+	 * @return bool
+	 */
+	public static function is_configured(): bool {
+		return self::uses_oidc() || '' !== self::all()['client_id'];
 	}
 
 	/**
@@ -107,13 +135,16 @@ final class Options {
 	 */
 	public static function defaults(): array {
 		return array(
-			'client_id'      => '',
-			'client_secret'  => '',
-			'tenant_url'     => 'https://qrauth.io',
-			'auto_provision' => false,
-			'default_role'   => 'subscriber',
-			'allowed_scopes' => array( 'identity', 'email' ),
-			'enabled_on'     => array( 'wp-login', 'register', 'profile' ),
+			'client_id'          => '',
+			'client_secret'      => '',
+			'tenant_url'         => 'https://qrauth.io',
+			'auto_provision'     => false,
+			'default_role'       => 'subscriber',
+			'allowed_scopes'     => array( 'identity', 'email' ),
+			'enabled_on'         => array( 'wp-login', 'register', 'profile' ),
+			'oidc_client_id'     => '',
+			'oidc_client_secret' => '',
+			'oidc_issuer'        => self::DEFAULT_OIDC_ISSUER,
 		);
 	}
 

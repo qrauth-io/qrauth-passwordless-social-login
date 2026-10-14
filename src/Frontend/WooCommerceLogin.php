@@ -95,7 +95,7 @@ final class WooCommerceLogin {
 
 		$options = Options::all();
 
-		if ( '' === $options['client_id'] ) {
+		if ( ! Options::is_configured() ) {
 			return false;
 		}
 

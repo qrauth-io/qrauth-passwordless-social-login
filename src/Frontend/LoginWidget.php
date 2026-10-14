@@ -11,6 +11,7 @@ namespace QRAuth\PasswordlessSocialLogin\Frontend;
 
 defined( 'ABSPATH' ) || exit;
 
+use QRAuth\PasswordlessSocialLogin\Oidc\LoginFlow;
 use QRAuth\PasswordlessSocialLogin\Support\Options;
 
 /**
@@ -68,7 +69,7 @@ final class LoginWidget {
 	public static function should_render( string $injection_point ): bool {
 		$options = Options::all();
 
-		if ( '' === $options['client_id'] ) {
+		if ( ! Options::is_configured() ) {
 			return false;
 		}
 
@@ -123,6 +124,11 @@ final class LoginWidget {
 	public static function render_widget( string $display, string $mode ): void {
 		$options = Options::all();
 
+		if ( Options::uses_oidc() ) {
+			self::render_oidc_button();
+			return;
+		}
+
 		?>
 		<qrauth-login
 			tenant="<?php echo esc_attr( $options['client_id'] ); ?>"
@@ -132,6 +138,25 @@ final class LoginWidget {
 			scopes="<?php echo esc_attr( implode( ' ', $options['allowed_scopes'] ) ); ?>"
 			redirect-uri="<?php echo esc_url( wp_login_url() ); ?>"
 		></qrauth-login>
+		<?php
+	}
+
+	/**
+	 * The OIDC "Sign in with QRAuth" link. After sign-in the visitor returns
+	 * to where they started: the login page's `redirect_to`, or the page the
+	 * button sits on (shortcode, WooCommerce). LoginFlow validates both.
+	 */
+	public static function render_oidc_button(): void {
+		$on_login_page = isset( $GLOBALS['pagenow'] ) && 'wp-login.php' === $GLOBALS['pagenow'];
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only destination, validated by LoginFlow.
+		$redirect_to = $on_login_page
+			? ( isset( $_REQUEST['redirect_to'] ) ? esc_url_raw( wp_unslash( (string) $_REQUEST['redirect_to'] ) ) : '' )
+			: ( isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( (string) $_SERVER['REQUEST_URI'] ) ) : '' );
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+		?>
+		<a class="button button-large qrauth-psl-oidc-button" href="<?php echo esc_url( LoginFlow::start_url( $redirect_to ) ); ?>">
+			<?php esc_html_e( 'Sign in with QRAuth', 'qrauth-passwordless-social-login' ); ?>
+		</a>
 		<?php
 	}
 }

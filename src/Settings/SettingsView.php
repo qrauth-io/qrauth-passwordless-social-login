@@ -11,6 +11,7 @@ namespace QRAuth\PasswordlessSocialLogin\Settings;
 
 defined( 'ABSPATH' ) || exit;
 
+use QRAuth\PasswordlessSocialLogin\Oidc\LoginFlow;
 use QRAuth\PasswordlessSocialLogin\Support\Options;
 
 /**
@@ -81,6 +82,69 @@ final class SettingsView {
 
 			<form method="post" action="options.php">
 				<?php settings_fields( Settings::OPTION_GROUP ); ?>
+
+				<h2><?php esc_html_e( 'Sign in with QRAuth (OpenID Connect)', 'qrauth-passwordless-social-login' ); ?></h2>
+				<p>
+					<?php esc_html_e( 'Recommended. Visitors are sent to QRAuth and back with a full-page redirect, so sign-in finishes in the same tab on phones and desktops. When a Client ID and Client Secret are set here, the sign-in button uses this instead of the embedded widget.', 'qrauth-passwordless-social-login' ); ?>
+				</p>
+				<p>
+					<?php
+					printf(
+						/* translators: 1: the redirect URI admins must register, 2: where sign-in clients are created in the QRAuth dashboard. */
+						esc_html__( 'Create a sign-in client in the QRAuth dashboard under %2$s with this exact redirect URI: %1$s', 'qrauth-passwordless-social-login' ),
+						'<code>' . esc_html( LoginFlow::redirect_uri() ) . '</code>',
+						'<strong>' . esc_html__( 'Sign-in clients', 'qrauth-passwordless-social-login' ) . '</strong>'
+					);
+					?>
+				</p>
+
+				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row">
+							<label for="qrauth_psl_oidc_client_id"><?php esc_html_e( 'OIDC Client ID', 'qrauth-passwordless-social-login' ); ?></label>
+						</th>
+						<td>
+							<input type="text" id="qrauth_psl_oidc_client_id" name="qrauth_psl_settings[oidc_client_id]" value="<?php echo esc_attr( $options['oidc_client_id'] ); ?>" class="regular-text code" autocomplete="off" spellcheck="false" />
+						</td>
+					</tr>
+					<tr>
+						<th scope="row">
+							<label for="qrauth_psl_oidc_client_secret"><?php esc_html_e( 'OIDC Client Secret', 'qrauth-passwordless-social-login' ); ?></label>
+						</th>
+						<td>
+							<input type="password" id="qrauth_psl_oidc_client_secret" name="qrauth_psl_settings[oidc_client_secret]" value="" class="regular-text code" autocomplete="new-password" spellcheck="false" />
+							<p class="description">
+								<?php
+								if ( '' !== $options['oidc_client_secret'] ) {
+									esc_html_e( 'Configured — leave blank to keep the current value. Enter a new value to overwrite.', 'qrauth-passwordless-social-login' );
+								} else {
+									esc_html_e( 'Shown once when you create the client. Used server-side only; never sent to the browser.', 'qrauth-passwordless-social-login' );
+								}
+								?>
+							</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row">
+							<label for="qrauth_psl_oidc_issuer"><?php esc_html_e( 'Issuer', 'qrauth-passwordless-social-login' ); ?></label>
+						</th>
+						<td>
+							<input type="url" id="qrauth_psl_oidc_issuer" name="qrauth_psl_settings[oidc_issuer]" value="<?php echo esc_attr( $options['oidc_issuer'] ); ?>" class="regular-text code" />
+							<p class="description">
+								<?php
+								printf(
+									/* translators: %s: the default issuer URL. */
+									esc_html__( 'Leave this set to %s. Only an https:// URL with no path is accepted.', 'qrauth-passwordless-social-login' ),
+									'<code>' . esc_html( Options::DEFAULT_OIDC_ISSUER ) . '</code>'
+								);
+								?>
+							</p>
+						</td>
+					</tr>
+				</table>
+
+				<h2><?php esc_html_e( 'Embedded widget (legacy)', 'qrauth-passwordless-social-login' ); ?></h2>
+				<p><?php esc_html_e( 'Used only while no OIDC client is configured above.', 'qrauth-passwordless-social-login' ); ?></p>
 
 				<table class="form-table" role="presentation">
 					<tr>

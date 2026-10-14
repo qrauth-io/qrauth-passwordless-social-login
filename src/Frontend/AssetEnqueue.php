@@ -83,7 +83,7 @@ final class AssetEnqueue {
 	public function on_login_page(): void {
 		$options = Options::all();
 
-		if ( '' === $options['client_id'] ) {
+		if ( ! Options::is_configured() ) {
 			return;
 		}
 
@@ -95,10 +95,7 @@ final class AssetEnqueue {
 		}
 
 		self::register_assets();
-
-		wp_enqueue_style( self::HANDLE_STYLE );
-		wp_enqueue_script( self::HANDLE_COMPONENTS );
-		wp_enqueue_script( self::HANDLE_ADAPTER );
+		self::enqueue_for_widget();
 	}
 
 	/**
@@ -112,7 +109,7 @@ final class AssetEnqueue {
 	 * pages that don't use the widget.
 	 */
 	public function on_frontend_page(): void {
-		if ( '' === (string) Options::get( 'client_id' ) ) {
+		if ( ! Options::is_configured() ) {
 			return;
 		}
 
@@ -134,6 +131,10 @@ final class AssetEnqueue {
 	 */
 	public static function enqueue_for_widget(): void {
 		wp_enqueue_style( self::HANDLE_STYLE );
+		// The OIDC button is a plain link: no widget bundle, no adapter.
+		if ( Options::uses_oidc() ) {
+			return;
+		}
 		wp_enqueue_script( self::HANDLE_COMPONENTS );
 		wp_enqueue_script( self::HANDLE_ADAPTER );
 	}

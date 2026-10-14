@@ -64,7 +64,7 @@ final class Shortcode {
 	public function render( $raw_atts = array() ): string {
 		$options = Options::all();
 
-		if ( '' === $options['client_id'] ) {
+		if ( ! Options::is_configured() ) {
 			return '';
 		}
 

@@ -70,7 +70,11 @@ final class ProfileFields {
 			return;
 		}
 
-		$linked_id = (string) get_user_meta( $user->ID, UserMetaKeys::QRAUTH_USER_ID, true );
+		// OIDC subject first: it is what an OIDC sign-in matches on.
+		$linked_id = (string) get_user_meta( $user->ID, UserMetaKeys::OIDC_SUBJECT, true );
+		if ( '' === $linked_id ) {
+			$linked_id = (string) get_user_meta( $user->ID, UserMetaKeys::QRAUTH_USER_ID, true );
+		}
 		$linked_at = (string) get_user_meta( $user->ID, UserMetaKeys::LINKED_AT, true );
 		$is_linked = '' !== $linked_id;
 

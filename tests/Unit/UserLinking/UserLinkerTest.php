@@ -12,6 +12,7 @@ namespace QRAuth\PasswordlessSocialLogin\Tests\Unit\UserLinking;
 use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
+use QRAuth\PasswordlessSocialLogin\Oidc\Identity;
 use QRAuth\PasswordlessSocialLogin\UserLinking\UserLinker;
 use QRAuth\PasswordlessSocialLogin\UserLinking\UserMetaKeys;
 use QRAuth\PasswordlessSocialLogin\Verification\VerifyException;
@@ -388,11 +389,126 @@ final class UserLinkerTest extends TestCase {
 		$linker = new UserLinker();
 
 		$this->assertTrue( $linker->unlink( 7 ) );
-		$this->assertCount( 2, $deletes );
-		$this->assertSame( UserMetaKeys::QRAUTH_USER_ID, $deletes[0]['key'] );
-		$this->assertSame( UserMetaKeys::LINKED_AT, $deletes[1]['key'] );
+		$this->assertSame(
+			array( UserMetaKeys::QRAUTH_USER_ID, UserMetaKeys::OIDC_SUBJECT, UserMetaKeys::LINKED_AT ),
+			array_column( $deletes, 'key' )
+		);
 
 		$action_names = array_column( $actions, 0 );
 		$this->assertContains( 'qrauth_psl_user_unlinked', $action_names );
+	}
+
+	/**
+	 * A verified OIDC identity for tests.
+	 *
+	 * @param bool        $verified Email verified flag.
+	 * @param string|null $email    Email claim.
+	 * @return Identity
+	 */
+	private function identity( bool $verified = true, ?string $email = 'alice@example.com' ): Identity {
+		return new Identity( 'pairwise-sub-1', $email, $verified, 'Alice' );
+	}
+
+	/**
+	 * Expect a VerifyException machine code.
+	 *
+	 * @param string   $code Expected code.
+	 * @param callable $callback Code under test.
+	 */
+	private function expect_verify_code( string $code, callable $callback ): void {
+		try {
+			$callback();
+		} catch ( VerifyException $e ) {
+			$this->assertSame( $code, $e->get_machine_code() );
+			return;
+		}
+		$this->fail( 'Expected VerifyException ' . $code );
+	}
+
+	/**
+	 * Oidc subject match signs in the linked user.
+	 */
+	public function test_oidc_subject_match_signs_in_the_linked_user(): void {
+		Functions\when( 'get_users' )->justReturn( array( 42 ) );
+
+		$this->assertSame( 42, ( new UserLinker() )->link_or_provision_identity( $this->identity() ) );
+		$this->assertSame( UserMetaKeys::LINKED_AT, $this->meta_updates[0]['key'] );
+	}
+
+	/**
+	 * Oidc verified email links an existing user.
+	 */
+	public function test_oidc_verified_email_links_an_existing_user(): void {
+		$user     = new WP_User();
+		$user->ID = 9;
+		Functions\when( 'get_user_by' )->justReturn( $user );
+		Functions\when( 'get_user_meta' )->justReturn( '' );
+
+		$this->assertSame( 9, ( new UserLinker() )->link_or_provision_identity( $this->identity() ) );
+		$this->assertSame(
+			array(
+				'user_id' => 9,
+				'key'     => UserMetaKeys::OIDC_SUBJECT,
+				'value'   => 'pairwise-sub-1',
+			),
+			$this->meta_updates[0]
+		);
+	}
+
+	/**
+	 * Oidc unverified email never links or provisions.
+	 */
+	public function test_oidc_unverified_email_never_links_or_provisions(): void {
+		$this->stub_options( array( 'auto_provision' => true ) );
+		$looked_up = false;
+		Functions\when( 'get_user_by' )->alias(
+			static function () use ( &$looked_up ) {
+				$looked_up = true;
+				return false;
+			}
+		);
+
+		$this->expect_verify_code( 'email_unverified', fn() => ( new UserLinker() )->link_or_provision_identity( $this->identity( false ) ) );
+		$this->assertFalse( $looked_up );
+		$this->assertSame( array(), $this->inserts );
+	}
+
+	/**
+	 * Oidc refuses a user linked to another subject.
+	 */
+	public function test_oidc_refuses_a_user_linked_to_another_subject(): void {
+		$user     = new WP_User();
+		$user->ID = 9;
+		Functions\when( 'get_user_by' )->justReturn( $user );
+		Functions\when( 'get_user_meta' )->justReturn( 'some-other-sub' );
+
+		$this->expect_verify_code( 'account_conflict', fn() => ( new UserLinker() )->link_or_provision_identity( $this->identity() ) );
+		$this->assertSame( array(), $this->meta_updates );
+	}
+
+	/**
+	 * Oidc without email cannot link.
+	 */
+	public function test_oidc_without_email_cannot_link(): void {
+		$this->expect_verify_code( 'provision_disabled', fn() => ( new UserLinker() )->link_or_provision_identity( $this->identity( true, null ) ) );
+	}
+
+	/**
+	 * Oidc provisions a subscriber only when enabled.
+	 */
+	public function test_oidc_provisions_a_subscriber_only_when_enabled(): void {
+		$this->expect_verify_code( 'provision_disabled', fn() => ( new UserLinker() )->link_or_provision_identity( $this->identity() ) );
+
+		$this->stub_options( array( 'auto_provision' => true ) );
+		Functions\when( 'wp_insert_user' )->alias(
+			function ( $data ) {
+				$this->inserts[] = $data;
+				return 77;
+			}
+		);
+
+		$this->assertSame( 77, ( new UserLinker() )->link_or_provision_identity( $this->identity() ) );
+		$this->assertSame( 'subscriber', $this->inserts[0]['role'] );
+		$this->assertSame( 'alice@example.com', $this->inserts[0]['user_email'] );
 	}
 }

@@ -139,6 +139,20 @@ final class Settings {
 	}
 
 	/**
+	 * True for `https://host[:port]` with nothing after the authority.
+	 *
+	 * @param string $issuer Candidate issuer URL.
+	 * @return bool
+	 */
+	public static function is_valid_issuer( string $issuer ): bool {
+		$parts = wp_parse_url( $issuer );
+		return is_array( $parts )
+			&& 'https' === ( $parts['scheme'] ?? '' )
+			&& '' !== ( $parts['host'] ?? '' )
+			&& empty( array_intersect_key( $parts, array_flip( array( 'path', 'query', 'fragment', 'user', 'pass' ) ) ) );
+	}
+
+	/**
 	 * Sanitize the submitted settings payload.
 	 *
 	 * Pure function — depends only on its argument and a read of the
@@ -232,6 +246,22 @@ final class Settings {
 		} else {
 			$clean['tenant_url'] = (string) $previous['tenant_url'];
 		}
+
+		// OIDC ("Sign in with QRAuth"). The secret follows the same
+		// blank-means-keep rule as client_secret. The issuer must be an https
+		// URL with no path, query or trailing slash: it is compared byte for
+		// byte with the ID token's `iss`, and every endpoint must live on its host.
+		$clean['oidc_client_id'] = isset( $input['oidc_client_id'] )
+			? trim( sanitize_text_field( (string) $input['oidc_client_id'] ) )
+			: (string) $previous['oidc_client_id'];
+
+		$submitted_oidc_secret       = isset( $input['oidc_client_secret'] ) ? (string) $input['oidc_client_secret'] : '';
+		$clean['oidc_client_secret'] = '' === trim( $submitted_oidc_secret )
+			? (string) $previous['oidc_client_secret']
+			: trim( $submitted_oidc_secret );
+
+		$issuer               = isset( $input['oidc_issuer'] ) ? trim( (string) $input['oidc_issuer'] ) : '';
+		$clean['oidc_issuer'] = self::is_valid_issuer( $issuer ) ? $issuer : (string) $previous['oidc_issuer'];
 
 		// auto_provision.
 		$clean['auto_provision'] = ! empty( $input['auto_provision'] );
