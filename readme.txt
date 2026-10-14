@@ -4,7 +4,7 @@ Tags: login, passwordless, qr code, social login, authentication
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.2
-Stable tag: 0.2.0
+Stable tag: 0.2.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -141,12 +141,15 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 4. The QRAuth dashboard at qrauth.io — where site operators generate the Client ID and Client Secret to paste into the plugin settings.
 
 == Changelog ==
+= 0.2.1 =
+* Fix: Sign in with QRAuth (OpenID Connect) was refused with "This account cannot sign in right now" on sites running a login reCAPTCHA or 2FA plugin. Those plugins check the password form, which a QRAuth sign-in does not use. QRAuth sign-ins no longer run WordPress's password-form check (`wp_authenticate_user`); inactive accounts are still refused, and account-approval plugins can refuse a QRAuth sign-in through the new `qrauth_psl_oidc_authenticate_user` filter.
+
 = 0.2.0 =
 * New: Sign in with QRAuth over OpenID Connect. Create a sign-in client in the QRAuth dashboard, register the redirect URI shown on the settings page, and enter its Client ID and Client Secret under Settings, QRAuth. The sign-in button then sends visitors to QRAuth and back with full-page redirects, so sign-in finishes in the same tab on phones as well as desktops. Sites without an OIDC client keep using the embedded widget unchanged.
 * Security: the OIDC flow uses the authorization code flow with PKCE, a single-use state bound to the visitor's browser, and a nonce. The ID token's signature and claims are verified against QRAuth's published keys before anyone is signed in.
 * Security: an OIDC sign-in matches an existing account by email only when QRAuth reports the address as verified, and never re-links an account already linked to a different QRAuth identity.
 * Security: accounts that can edit other people's content (Editor, Administrator) are never linked by email. Link them once from the user's own profile ("Link your QRAuth account") while signed in with a password. Administrators who signed in with the widget before need to do this once after switching to OIDC.
-* Security: OIDC sign-ins pass through the same `wp_authenticate_user` checks as a password login (account-approval and lockout plugins apply), respect multisite membership, and start a browser session rather than a "remember me" one. The browser-binding cookie uses the `__Host-` prefix on https, and flow starts are rate limited per IP.
+* Security: OIDC sign-ins respect multisite membership, and start a browser session rather than a "remember me" one. The browser-binding cookie uses the `__Host-` prefix on https, and flow starts are rate limited per IP.
 * The OIDC issuer is fixed to https://id.qrauth.io. A self-hosted QRAuth can override it with the `qrauth_psl_oidc_issuer` filter.
 
 = 0.1.24 =
