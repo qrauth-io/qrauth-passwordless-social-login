@@ -4,7 +4,7 @@ Tags: login, passwordless, qr code, social login, authentication
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.2
-Stable tag: 0.2.1
+Stable tag: 0.2.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -141,6 +141,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 4. The QRAuth dashboard at qrauth.io — where site operators generate the Client ID and Client Secret to paste into the plugin settings.
 
 == Changelog ==
+= 0.2.2 =
+* Fix: the "Sign in with QRAuth" button shown when an OpenID Connect client is configured now carries the QRAuth logo and the same navy style as the embedded widget's button, instead of plain text.
+
 = 0.2.1 =
 * Fix: Sign in with QRAuth (OpenID Connect) was refused with "This account cannot sign in right now" on sites running a login reCAPTCHA or 2FA plugin. Those plugins check the password form, which a QRAuth sign-in does not use. QRAuth sign-ins no longer run WordPress's password-form check (`wp_authenticate_user`); inactive accounts are still refused, and account-approval plugins can refuse a QRAuth sign-in through the new `qrauth_psl_oidc_authenticate_user` filter.
 
