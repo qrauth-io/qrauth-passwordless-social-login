@@ -154,8 +154,23 @@ final class LoginWidget {
 			: ( isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( (string) $_SERVER['REQUEST_URI'] ) ) : '' );
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 		?>
-		<a class="button button-large qrauth-psl-oidc-button" href="<?php echo esc_url( LoginFlow::start_url( $redirect_to ) ); ?>">
-			<?php esc_html_e( 'Sign in with QRAuth', 'qrauth-passwordless-social-login' ); ?>
+		<a class="qrauth-psl-oidc-button" href="<?php echo esc_url( LoginFlow::start_url( $redirect_to ) ); ?>">
+			<svg class="qrauth-psl-oidc-button__logo" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+				<path d="M48 24 H152 Q166 24 166 38 V108 Q166 156 100 182 Q34 156 34 108 V38 Q34 24 48 24 Z" fill="none" stroke="#fff" stroke-width="5"/>
+				<g fill="#fff" opacity="0.2">
+					<rect x="52" y="40" width="18" height="18" rx="3"/>
+					<rect x="78" y="40" width="18" height="18" rx="3"/>
+					<rect x="130" y="40" width="18" height="18" rx="3"/>
+					<rect x="52" y="66" width="18" height="18" rx="3"/>
+					<rect x="104" y="66" width="18" height="18" rx="3"/>
+					<rect x="78" y="92" width="18" height="18" rx="3"/>
+					<rect x="130" y="92" width="18" height="18" rx="3"/>
+					<rect x="52" y="118" width="18" height="18" rx="3"/>
+					<rect x="104" y="118" width="18" height="18" rx="3"/>
+				</g>
+				<path d="M62 104 L88 134 L144 64" fill="none" stroke="#fff" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+			</svg>
+			<span><?php esc_html_e( 'Sign in with QRAuth', 'qrauth-passwordless-social-login' ); ?></span>
 		</a>
 		<?php
 	}

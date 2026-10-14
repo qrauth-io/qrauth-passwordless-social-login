@@ -28,11 +28,43 @@
 	display: block;
 }
 
-/* OIDC "Sign in with QRAuth" link (shown instead of the widget). */
+/* OIDC "Sign in with QRAuth" link (shown instead of the widget). Matches the
+ * widget's button: navy, white shield logo. Class-scoped with explicit
+ * values so the login page's own button styles do not override it. */
 .qrauth-psl-oidc-button {
-	display: inline-block;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+	box-sizing: border-box;
 	width: 100%;
 	max-width: 320px;
-	box-sizing: border-box;
-	text-align: center;
+	padding: 12px 24px;
+	border: 0;
+	border-radius: 12px;
+	background: #1b2a4a;
+	color: #fff;
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 1.2;
+	text-decoration: none;
+	transition: background 0.2s, box-shadow 0.2s;
+}
+
+.qrauth-psl-oidc-button:hover,
+.qrauth-psl-oidc-button:focus {
+	background: #263b66;
+	color: #fff;
+	box-shadow: 0 4px 12px rgba(27, 42, 74, 0.25);
+}
+
+.qrauth-psl-oidc-button:focus-visible {
+	outline: 2px solid #2271b1;
+	outline-offset: 2px;
+}
+
+.qrauth-psl-oidc-button__logo {
+	flex-shrink: 0;
+	width: 22px;
+	height: 22px;
 }

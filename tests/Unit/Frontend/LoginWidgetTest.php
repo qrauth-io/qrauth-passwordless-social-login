@@ -169,4 +169,38 @@ final class LoginWidgetTest extends TestCase {
 
 		$this->assertStringContainsString( 'scopes="identity email organization"', $html );
 	}
+
+	/**
+	 * With an OIDC client the button replaces the widget and carries the QRAuth logo.
+	 */
+	public function test_oidc_button_replaces_the_widget_and_shows_the_logo(): void {
+		$this->stub_options(
+			array(
+				'oidc_client_id'     => 'oidc-client',
+				'oidc_client_secret' => 'oidc-secret',
+			)
+		);
+		Functions\when( 'add_query_arg' )->alias(
+			static function ( $key, $value, $url ) {
+				return $url . '?' . $key . '=' . $value;
+			}
+		);
+		Functions\when( 'esc_html_e' )->alias(
+			static function ( $text ) {
+				echo $text; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- test stub.
+			}
+		);
+		Functions\when( 'esc_url_raw' )->returnArg();
+		Functions\when( 'wp_unslash' )->returnArg();
+
+		ob_start();
+		LoginWidget::emit( 'button', 'login' );
+		$html = (string) ob_get_clean();
+
+		$this->assertStringNotContainsString( '<qrauth-login', $html );
+		$this->assertStringContainsString( 'class="qrauth-psl-oidc-button"', $html );
+		$this->assertStringContainsString( 'href="https://example.test/wp-login.php?action=qrauth_psl_oidc', $html );
+		$this->assertMatchesRegularExpression( '/<svg class="qrauth-psl-oidc-button__logo"[^>]*aria-hidden="true"/', $html );
+		$this->assertStringContainsString( 'Sign in with QRAuth', $html );
+	}
 }
