@@ -1,0 +1,141 @@
+name: WordPress.org Deploy
+
+# Publishes the plugin to the WordPress.org SVN repo. The public directory
+# listing (version, "Download", description) is served from SVN trunk + tags,
+# and the directory ICON / BANNER / SCREENSHOTS are served from the separate
+# SVN /assets folder — neither is touched by release.yml (which only builds a
+# GitHub Release ZIP). This workflow closes that gap.
+#
+# Two paths:
+#
+#   1. Push a `v*` tag (e.g. `git tag v0.1.23 && git push origin v0.1.23`)
+#      → builds the clean tree and deploys it to SVN trunk + tags/<version>,
+#        then refreshes the /assets directory. This is a full release.
+#
+#   2. Run manually (Actions → WordPress.org Deploy → Run workflow)
+#      → refreshes ONLY the /assets directory (icon, banner, screenshots)
+#        from `.wordpress-org/`. Use this to fix the logo/banner without
+#        cutting a new release.
+#
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   WPORG_SVN_USERNAME  — your wordpress.org account username
+#   WPORG_SVN_PASSWORD  — your wordpress.org account password
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+env:
+  SLUG: qrauth-passwordless-social-login
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Full release: build the plugin and push code → SVN trunk + tags/<version>.
+  # Tag pushes only — manual dispatch never deploys code (avoids shipping
+  # unreleased main), it just refreshes assets via the job below.
+  # ---------------------------------------------------------------------------
+  deploy:
+    name: Deploy code to SVN trunk + tag
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          tools: composer
+          coverage: none
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+
+      - name: Install production composer deps
+        # No dev deps — WPCS, PHPUnit, WP-CLI scaffolding don't ship to WP.org.
+        run: composer install --no-dev --optimize-autoloader --no-interaction
+
+      - name: Build plugin assets (fetch the vendored IIFE)
+        run: npm run build:assets
+
+      - name: Resolve version from readme.txt Stable tag
+        # The Stable tag in readme.txt is the source of truth WP.org reads —
+        # deploy under exactly that so trunk and tags/<version> agree with it.
+        id: ver
+        run: |
+          version="$(grep -i '^Stable tag:' readme.txt | head -1 | sed -E 's/.*:[[:space:]]*//')"
+          if [ -z "$version" ]; then
+            echo "::error::Could not parse 'Stable tag:' from readme.txt"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Deploying version: $version"
+
+      - name: Sanity check — pushed tag matches Stable tag
+        # Guard against tagging v0.1.23 while readme still says 0.1.21.
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          if [ "$tag" != "${{ steps.ver.outputs.version }}" ]; then
+            echo "::error::Git tag ($tag) != readme Stable tag (${{ steps.ver.outputs.version }}). Bump readme.txt before tagging."
+            exit 1
+          fi
+
+      - name: Assemble clean plugin tree
+        # Same exclude list as release.yml, plus .wordpress-org (those files
+        # belong in SVN /assets, not in the shipped plugin / trunk).
+        run: |
+          mkdir -p ./build/${{ env.SLUG }}
+          rsync -a \
+            --exclude=".git/" \
+            --exclude=".github/" \
+            --exclude=".wordpress-org/" \
+            --exclude="SPECS/" \
+            --exclude="docs/" \
+            --exclude="node_modules/" \
+            --exclude="tests/" \
+            --exclude="bin/" \
+            --exclude="build/" \
+            --exclude=".editorconfig" \
+            --exclude=".gitattributes" \
+            --exclude=".gitignore" \
+            --exclude=".phpcs.cache" \
+            --exclude=".wp-env.json" \
+            --exclude="CLAUDE.md" \
+            --exclude="composer.lock" \
+            --exclude="package.json" \
+            --exclude="package-lock.json" \
+            --exclude="phpcs.xml.dist" \
+            --exclude="phpunit.xml.dist" \
+            --exclude=".gitkeep" \
+            ./ ./build/${{ env.SLUG }}/
+
+      - name: Deploy to WordPress.org SVN (trunk + tags/<version>)
+        uses: 10up/action-wordpress-plugin-deploy@stable
+        env:
+          SVN_USERNAME: ${{ secrets.WPORG_SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.WPORG_SVN_PASSWORD }}
+          SLUG: ${{ env.SLUG }}
+          VERSION: ${{ steps.ver.outputs.version }}
+          BUILD_DIR: ./build/${{ env.SLUG }}
+
+  # ---------------------------------------------------------------------------
+  # Directory assets: sync .wordpress-org/ (icon, banner, screenshots) → SVN
+  # /assets. Runs on every tag release AND on manual dispatch, so the logo can
+  # be fixed independently of a code release. No build needed.
+  # ---------------------------------------------------------------------------
+  assets:
+    name: Update directory assets (icon / banner / screenshots)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Sync .wordpress-org → SVN /assets
+        uses: 10up/action-wordpress-plugin-asset-update@stable
+        env:
+          SVN_USERNAME: ${{ secrets.WPORG_SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.WPORG_SVN_PASSWORD }}
+          SLUG: ${{ env.SLUG }}
+          ASSETS_DIR: .wordpress-org
