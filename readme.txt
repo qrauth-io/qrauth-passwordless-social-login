@@ -4,21 +4,30 @@ Tags: login, passwordless, qr code, social login, authentication
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.2
-Stable tag: 0.2.2
+Stable tag: 0.2.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Passwordless sign-in for WordPress. Users scan a QR code or sign in with a social account — no passwords, no forms, no OAuth apps to register.
+Passwordless sign-in for WordPress. Visitors sign in with QRAuth: a quick scan on a computer, one tap on a phone. No passwords to remember.
 
 == Description ==
 
-QRAuth replaces the password field on your WordPress login page with a drop-in QR widget. Users sign in by scanning the QR code with their phone; a cryptographic signature is verified server-to-server before WordPress sets the auth cookie. Social login (Google, GitHub, Microsoft, Apple) is brokered by QRAuth's hosted approval page, so you never have to register an OAuth app or hold a client secret.
+Adds a **Sign in with QRAuth** button to your WordPress login page. Visitors press it, confirm it is them on QRAuth, and come straight back signed in. On a computer they scan a code with their phone's camera. On a phone they confirm on the phone itself, with no code to scan. QRAuth handles Google, GitHub, Microsoft and Apple sign-in for you, so you never register an OAuth app with any of them.
 
-**One Client ID is the only configuration.** Paste it into Settings → QRAuth and the widget appears on wp-login.php. Everything else — the approval flow, the signing, the token refresh — lives in the QRAuth platform.
+**Five-minute setup.** Create a free QRAuth account, add your website in the QRAuth dashboard, and paste the Client ID and Client Secret into Settings → QRAuth. The settings page walks you through each step and shows the exact address to copy.
 
-**Account safety is the default.** Auto-provisioning is off out of the box: only WordPress users who already exist (matched on email) can sign in via QRAuth. Flip on auto-provisioning and new users are created as Subscriber — that's the only role available, intentionally and at every layer (settings UI, sanitiser, runtime). Operators who need a different role for an individual user can change it manually via Users → All Users after their first sign-in. The plugin never stores the signing material, never issues a redirect outside your site, and never touches your user table on uninstall.
+**Built on OpenID Connect.** Sign in with QRAuth uses the authorization code flow with PKCE, a one-time state bound to the visitor's browser, and a nonce. WordPress checks the ID token's signature against QRAuth's published keys before anyone is signed in. The QRAuth sign-in service is OpenID Certified.
 
-**Self-hosted, no third-party scripts on wp-login.php.** The QRAuth web component ships vendored inside the plugin — the only outbound call is from your server to QRAuth's verification endpoint during a sign-in attempt.
+**Account safety is the default.**
+
+* Only people who already have a WordPress account can sign in, matched on an email address QRAuth has verified. Turn on account creation if you want open registration.
+* New accounts are always created as Subscriber, at every layer (settings, sanitiser, runtime). Change a role by hand under Users → All Users if needed.
+* Administrators and Editors are never matched by email. They link their account once from their own profile page while signed in with their password.
+* The plugin never redirects outside your site and never touches your user table on uninstall.
+
+**Works where your users sign in:** wp-login.php, the registration form, WooCommerce My Account and checkout, and any page via the `[qrauth_login]` shortcode.
+
+**Older sites: embedded widget.** Sites set up before Sign in with QRAuth existed can keep using the embedded QR widget. It is used only while no Sign in with QRAuth client is configured, and switching over keeps every linked account.
 
 **Open source build.** The compressed JavaScript at `assets/js/qrauth-components.js` is built from publicly available TypeScript source at https://github.com/qrauth-io/qrauth/tree/main/packages/web-components. The unminified source files are also vendored alongside the minified bundle inside this plugin (`assets/js/source/`) for offline review. See the **Source** section below for build instructions.
 
@@ -89,17 +98,43 @@ The build script `bin/fetch-web-components.mjs` (kept in the plugin source repos
 
 == Installation ==
 
-1. Upload the plugin or install via WP-Admin → Plugins → Add New.
-2. Activate through the 'Plugins' menu in WordPress.
-3. Go to Settings → QRAuth and paste your Client ID and Client Secret from https://qrauth.io/dashboard. The Client Secret is used server-side only — it never reaches the browser.
-4. In the QRAuth dashboard (**Apps → your app → Redirect URLs**), register your site's login URL — typically `https://<your-site>/wp-login.php`. Without this registration, sign-in on phones (same-device approval) cannot complete; desktop sign-in works without it. The exact URL to register is shown on the Settings → QRAuth page. One registration is enough even on multilingual sites (WPML, Polylang, Weglot): the plugin uses the language-neutral admin URL, not the translated home URL, so `/en/wp-login.php` / `/fr/wp-login.php` / etc. don't need separate entries.
-5. Log out and try signing in via the "Sign in with QRAuth" button on wp-login.php.
+1. Install the plugin from WP-Admin → Plugins → Add New (search for "QRAuth"), then activate it.
+2. Create a free account at https://qrauth.io/signup if you do not have one.
+3. In the QRAuth dashboard, open **Website Sign-in** and press **Add website**:
+    * **Name:** your site name. Visitors see it on the QRAuth sign-in page.
+    * **Sign-in return address:** copy it from Settings → QRAuth in WordPress. It looks like `https://your-site.com/wp-login.php?action=qrauth_psl_oidc` and must match exactly.
+    * **Kind of site:** Website with a server.
+    * **What your site can see:** keep **Name** and **Email address** ticked. The plugin asks for both.
+4. QRAuth shows your **Client ID** and **Client Secret**. Paste both into Settings → QRAuth → Sign in with QRAuth and save. The secret is shown only once; if you lose it, create a new one from the same dashboard page.
+5. Open your login page in a private window and press **Sign in with QRAuth**.
+
+Optional: under **Who can sign in**, turn on account creation for visitors who do not have an account yet. Under **Where the button appears**, choose the registration form, WooCommerce forms or the shortcode.
+
+Multilingual sites (WPML, Polylang, Weglot) need only one return address: the plugin uses the language-neutral login URL.
 
 == Frequently Asked Questions ==
 
-= Do my users need a QRAuth account? =
+= Do my users need to install an app? =
 
-No, and there is no app to install. They scan the code on your login page with their phone, tap their social provider (Google, GitHub, Microsoft, Apple) on QRAuth's hosted approval page, and approve — they don't need a QRAuth account at all.
+No. On a computer they scan the code with their phone's camera. On a phone they press the button and confirm on the same phone. They confirm with Google, GitHub, Microsoft or Apple on QRAuth's page, so there is nothing to install and no new password.
+
+= How does sign-in work on a phone? =
+
+The visitor presses "Sign in with QRAuth", confirms on QRAuth in the same tab, and lands back on your site signed in. The phone is not asked to scan its own screen; the QR code is only offered for signing in from a second device.
+
+= Should I use Sign in with QRAuth or the embedded widget? =
+
+Use Sign in with QRAuth for every new site. The embedded widget is kept for sites that were set up with it. To switch, add your website under Website Sign-in in the QRAuth dashboard and paste the new Client ID and Client Secret into the Sign in with QRAuth section. Existing users keep their linked accounts. Administrators and Editors who used the widget link their account once from their profile.
+
+= Sign-in does not work. What should I check? =
+
+Settings → QRAuth has a "Sign-in not working?" list. The most common causes:
+
+* QRAuth says "This sign-in link looks wrong": the return address in the QRAuth dashboard does not match the one on the settings page exactly, or the Client ID has a typo.
+* Your login page says "QRAuth sign-in failed": Name or Email address is not ticked for your website in the QRAuth dashboard, or the Client Secret was replaced there.
+* "There is no account on this site for your QRAuth identity": no user has that email address and account creation is off.
+
+With `WP_DEBUG_LOG` on, each failed sign-in writes its exact reason to the debug log in a line starting with `[qrauth-psl]`.
 
 = Where are passwords stored? =
 
@@ -140,7 +175,13 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 3. Settings → QRAuth admin page — Client ID, Client Secret, Tenant URL, auto-provision toggle, default role, allowed scopes, and per-surface enable switches.
 4. The QRAuth dashboard at qrauth.io — where site operators generate the Client ID and Client Secret to paste into the plugin settings.
 
-== Changelog ==
+=== Changelog ==
+= 0.2.3 =
+* Settings → QRAuth is now a step-by-step setup guide for Sign in with QRAuth, with the return address ready to copy, a status banner that says which sign-in method is active, and a "Sign-in not working?" checklist.
+* Settings shared by both sign-in methods (who can sign in, where the button appears) have their own sections. The embedded widget's settings are folded under "Older embedded widget (legacy)" and open automatically on sites that still use it.
+* Readme: setup instructions and FAQ rewritten around Sign in with QRAuth.
+
+=
 = 0.2.2 =
 * Fix: the "Sign in with QRAuth" button shown when an OpenID Connect client is configured now carries the QRAuth logo and the same navy style as the embedded widget's button, instead of plain text.
 
@@ -250,6 +291,9 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 * Full i18n scaffolding (POT + Greek translation source).
 
 == Upgrade Notice ==
+
+= 0.2.3 =
+Clearer settings page with a step-by-step Sign in with QRAuth setup guide. No behaviour changes.
 
 = 0.1.24 =
 Security hardening: vendored web component 0.4.2 (plain-text error messages, verifier kept out of URLs) and app credentials on the server-side verification call. Recommended for all sites.
