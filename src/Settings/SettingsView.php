@@ -33,7 +33,7 @@ final class SettingsView {
 	/**
 	 * Where site owners create a QRAuth account.
 	 */
-	private const SIGNUP_URL = 'https://qrauth.io/signup';
+	private const SIGNUP_URL = 'https://qrauth.io/auth/jwt/sign-up';
 
 	/**
 	 * Dashboard page where websites (OIDC clients) are added.

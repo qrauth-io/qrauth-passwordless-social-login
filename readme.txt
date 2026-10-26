@@ -99,7 +99,7 @@ The build script `bin/fetch-web-components.mjs` (kept in the plugin source repos
 == Installation ==
 
 1. Install the plugin from WP-Admin → Plugins → Add New (search for "QRAuth"), then activate it.
-2. Create a free account at https://qrauth.io/signup if you do not have one.
+2. Create a free account at https://qrauth.io/auth/jwt/sign-up if you do not have one.
 3. In the QRAuth dashboard, open **Website Sign-in** and press **Add website**:
     * **Name:** your site name. Visitors see it on the QRAuth sign-in page.
     * **Sign-in return address:** copy it from Settings → QRAuth in WordPress. It looks like `https://your-site.com/wp-login.php?action=qrauth_psl_oidc` and must match exactly.
@@ -170,18 +170,19 @@ Per-site activation works today. Network-activated multisite is tracked for a fu
 
 == Screenshots ==
 
-1. wp-login.php with the "Sign in with QRAuth" button under the password field — drop-in passwordless sign-in, no configuration needed beyond the Client ID.
-2. The QRAuth widget active with the animated QR code, session countdown, and "Continue on this device" CTA for users on mobile devices.
-3. Settings → QRAuth admin page — Client ID, Client Secret, Tenant URL, auto-provision toggle, default role, allowed scopes, and per-surface enable switches.
-4. The QRAuth dashboard at qrauth.io — where site operators generate the Client ID and Client Secret to paste into the plugin settings.
+1. The WordPress login page with the "Sign in with QRAuth" button under the password form.
+2. QRAuth's sign-in page on a computer: visitors scan the code with their phone's camera.
+3. The same page on a phone: no code to scan, visitors confirm right there and come back signed in.
+4. Settings → QRAuth: a step-by-step setup guide with the return address ready to copy.
+5. Adding your website in the QRAuth dashboard to get the Client ID and Client Secret.
 
-=== Changelog ==
+== Changelog ==
 = 0.2.3 =
 * Settings → QRAuth is now a step-by-step setup guide for Sign in with QRAuth, with the return address ready to copy, a status banner that says which sign-in method is active, and a "Sign-in not working?" checklist.
 * Settings shared by both sign-in methods (who can sign in, where the button appears) have their own sections. The embedded widget's settings are folded under "Older embedded widget (legacy)" and open automatically on sites that still use it.
 * Readme: setup instructions and FAQ rewritten around Sign in with QRAuth.
+* Greek (el_GR) translation source for every plugin string.
 
-=
 = 0.2.2 =
 * Fix: the "Sign in with QRAuth" button shown when an OpenID Connect client is configured now carries the QRAuth logo and the same navy style as the embedded widget's button, instead of plain text.
 
