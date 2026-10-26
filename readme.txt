@@ -104,7 +104,7 @@ The build script `bin/fetch-web-components.mjs` (kept in the plugin source repos
     * **Name:** your site name. Visitors see it on the QRAuth sign-in page.
     * **Sign-in return address:** copy it from Settings → QRAuth in WordPress. It looks like `https://your-site.com/wp-login.php?action=qrauth_psl_oidc` and must match exactly.
     * **Kind of site:** Website with a server.
-    * **What your site can see:** keep **Name** and **Email address** ticked. The plugin asks for both.
+    * **What your site can see:** keep **Full name** and **Email address** ticked. The plugin asks for both.
 4. QRAuth shows your **Client ID** and **Client Secret**. Paste both into Settings → QRAuth → Sign in with QRAuth and save. The secret is shown only once; if you lose it, create a new one from the same dashboard page.
 5. Open your login page in a private window and press **Sign in with QRAuth**.
 
@@ -131,7 +131,7 @@ Use Sign in with QRAuth for every new site. The embedded widget is kept for site
 Settings → QRAuth has a "Sign-in not working?" list. The most common causes:
 
 * QRAuth says "This sign-in link looks wrong": the return address in the QRAuth dashboard does not match the one on the settings page exactly, or the Client ID has a typo.
-* Your login page says "QRAuth sign-in failed": Name or Email address is not ticked for your website in the QRAuth dashboard, or the Client Secret was replaced there.
+* Your login page says "QRAuth sign-in failed": Full name or Email address is not ticked for your website in the QRAuth dashboard, or the Client Secret was replaced there.
 * "There is no account on this site for your QRAuth identity": no user has that email address and account creation is off.
 
 With `WP_DEBUG_LOG` on, each failed sign-in writes its exact reason to the debug log in a line starting with `[qrauth-psl]`.

@@ -157,7 +157,7 @@ final class SettingsView {
 						<input type="text" class="large-text code qrauth-psl-copy" readonly value="<?php echo esc_attr( LoginFlow::redirect_uri() ); ?>" aria-label="<?php esc_attr_e( 'Sign-in return address to copy', 'qrauth-passwordless-social-login' ); ?>" />
 					</li>
 					<li><?php esc_html_e( 'Kind of site: Website with a server.', 'qrauth-passwordless-social-login' ); ?></li>
-					<li><?php esc_html_e( 'What your site can see: keep Name and Email address ticked. The plugin asks for both, and sign-in fails without them.', 'qrauth-passwordless-social-login' ); ?></li>
+					<li><?php esc_html_e( 'What your site can see: keep Full name and Email address ticked. The plugin asks for both, and sign-in fails without them.', 'qrauth-passwordless-social-login' ); ?></li>
 				</ul>
 			</li>
 			<li><?php esc_html_e( 'QRAuth then shows your Client ID and Client Secret. Copy both into the boxes below and save. The secret is shown only once; if you lose it, create a new one from the same page.', 'qrauth-passwordless-social-login' ); ?></li>
@@ -196,7 +196,7 @@ final class SettingsView {
 			<summary><?php esc_html_e( 'Sign-in not working?', 'qrauth-passwordless-social-login' ); ?></summary>
 			<ul>
 				<li><?php esc_html_e( 'QRAuth says "This sign-in link looks wrong": the return address saved in the QRAuth dashboard does not match the one above exactly (check https, www, and the part after the question mark), or the Client ID has a typo.', 'qrauth-passwordless-social-login' ); ?></li>
-				<li><?php esc_html_e( 'Your login page says "QRAuth sign-in failed": usually Name or Email address is not ticked for your website in the QRAuth dashboard, or the Client Secret was replaced there. Tick both, or paste the current secret above.', 'qrauth-passwordless-social-login' ); ?></li>
+				<li><?php esc_html_e( 'Your login page says "QRAuth sign-in failed": usually Full name or Email address is not ticked for your website in the QRAuth dashboard, or the Client Secret was replaced there. Tick both, or paste the current secret above.', 'qrauth-passwordless-social-login' ); ?></li>
 				<li><?php esc_html_e( '"There is no account on this site for your QRAuth identity": no user here has that email address and creating new accounts is off (see "Who can sign in" below).', 'qrauth-passwordless-social-login' ); ?></li>
 				<li><?php esc_html_e( '"This account has elevated permissions": Administrators and Editors link their account once from their own profile page, while signed in with their password.', 'qrauth-passwordless-social-login' ); ?></li>
 				<li>
